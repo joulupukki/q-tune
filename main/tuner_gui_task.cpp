@@ -75,6 +75,8 @@ lv_coord_t screen_height = 0;
 
 lv_display_t *lvgl_display = NULL;
 lv_obj_t *main_screen = NULL;
+esp_lcd_touch_handle_t touch_handle;
+
 
 bool is_gui_loaded = false;
 
@@ -174,7 +176,6 @@ TunerGUIInterface get_active_gui() {
 void tuner_gui_task(void *pvParameter) {
     esp_lcd_panel_io_handle_t lcd_io;
     esp_lcd_panel_handle_t lcd_panel;
-    esp_lcd_touch_handle_t tp;
     lvgl_port_touch_cfg_t touch_cfg;
 
     ESP_ERROR_CHECK(lcd_display_brightness_init());
@@ -187,15 +188,14 @@ void tuner_gui_task(void *pvParameter) {
         esp_restart();
     }
 
-    ESP_ERROR_CHECK(touch_init(&tp));
+    ESP_ERROR_CHECK(touch_init(&touch_handle, lvgl_display));
     touch_cfg.disp = lvgl_display;
-    touch_cfg.handle = tp;
+    touch_cfg.handle = touch_handle;
     lvgl_port_add_touch(&touch_cfg);
 
     if (lvgl_port_lock(0)) {
         ESP_ERROR_CHECK(lcd_display_brightness_set(userSettings->displayBrightness * 100));
         ESP_ERROR_CHECK(lcd_display_rotate(lvgl_display, userSettings->getDisplayOrientation()));
-        // ESP_ERROR_CHECK(lcd_display_rotate(lvgl_display, LV_DISPLAY_ROTATION_0)); // Upside Down
         lvgl_port_unlock();
     }
 

@@ -21,15 +21,20 @@
 #include "tuner_controller.h"
 #include "tuner_ui_interface.h"
 
+extern "C" { // because these files are C and not C++
+    #include "touch.h"
+}
+
 static const char *TAG = "Settings";
 
 extern TunerController *tunerController;
 extern TunerGUIInterface available_guis[1]; // defined in tuner_gui_task.cpp
 extern size_t num_of_available_guis;
+extern esp_lcd_touch_handle_t touch_handle;
 
 #define MENU_BTN_TUNER              "Tuner"
-#define MENU_BTN_TUNER_MODE         "Mode"
-#define MENU_BTN_IN_TUNE_THRESHOLD  "In-Tune Threshold"
+    #define MENU_BTN_TUNER_MODE         "Mode"
+    #define MENU_BTN_IN_TUNE_THRESHOLD  "In-Tune Threshold"
 
 #define MENU_BTN_DISPLAY            "Display"
     #define MENU_BTN_BRIGHTNESS         "Brightness"
@@ -42,6 +47,7 @@ extern size_t num_of_available_guis;
         #define MENU_BTN_ROTATION_LEFT      "Left"
         #define MENU_BTN_ROTATION_RIGHT     "Right"
         #define MENU_BTN_ROTATION_UPSIDE_DN "Upside Down"
+    #define MENU_BTN_CALIBRATION        "Calibration"
 
 #define MENU_BTN_DEBUG              "Advanced"
 #define MENU_BTN_EXP_SMOOTHING      "Exp Smoothing"
@@ -135,6 +141,8 @@ static void handleRotationLeftClicked(lv_event_t *e);
 static void handleRotationRightClicked(lv_event_t *e);
 static void handleRotationUpsideDnClicked(lv_event_t *e);
 
+static void handleCalibrationButtonClicked(lv_event_t *e);
+
 static void handleDebugButtonClicked(lv_event_t *e);
 static void handleExpSmoothingButtonClicked(lv_event_t *e);
 static void handle1EUBetaButtonClicked(lv_event_t *e);
@@ -159,6 +167,7 @@ void UserSettings::loadSettings() {
 
     uint8_t value;
     uint32_t value32;
+    int32_t valuei32;
 
     if (nvs_get_u8(nvsHandle, SETTINGS_INITIAL_SCREEN, &value) == ESP_OK) {
         initialState = (TunerState)value;
@@ -262,6 +271,7 @@ void UserSettings::saveSettings() {
     ESP_LOGI(TAG, "save settings");
     uint8_t value;
     uint32_t value32;
+    int32_t valuei32;
 
     value = initialState;
     nvs_set_u8(nvsHandle, SETTINGS_INITIAL_SCREEN, value);
@@ -881,14 +891,16 @@ static void handleDisplayButtonClicked(lv_event_t *e) {
         MENU_BTN_NOTE_COLOR,
         MENU_BTN_INITIAL_SCREEN,
         MENU_BTN_ROTATION,
+        MENU_BTN_CALIBRATION,
     };
     lv_event_cb_t callbackFunctions[] = {
         handleBrightnessButtonClicked,
         handleNoteColorButtonClicked,
         handleInitialScreenButtonClicked,
         handleRotationButtonClicked,
+        handleCalibrationButtonClicked,
     };
-    settings->createMenu(buttonNames, NULL, NULL, callbackFunctions, 4);
+    settings->createMenu(buttonNames, NULL, NULL, callbackFunctions, 5);
 }
 
 static void handleBrightnessButtonClicked(lv_event_t *e) {
@@ -1112,6 +1124,16 @@ static void handleRotationUpsideDnClicked(lv_event_t *e) {
     settings = (UserSettings *)lv_obj_get_user_data((lv_obj_t *)lv_event_get_target(e));
     lvgl_port_unlock();
     settings->rotateScreenTo(orientationUpsideDown);
+}
+
+static void handleCalibrationButtonClicked(lv_event_t *e) {
+    ESP_LOGI(TAG, "Display Calibration button clicked");
+    // UserSettings *settings;
+    // if (!lvgl_port_lock(0)) {
+    //     return;
+    // }
+    // lvgl_port_unlock();
+    calibrate_touch_screen(touch_handle);
 }
 
 static void handleDebugButtonClicked(lv_event_t *e) {

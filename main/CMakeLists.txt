@@ -28,6 +28,7 @@ set(INCLUDE_DIRS
     standby-ui
     tuning-ui
     utils
+    ${CMAKE_SOURCE_DIR}/extra_components/BasicLinearAlgebra
 )
 
 idf_component_register(

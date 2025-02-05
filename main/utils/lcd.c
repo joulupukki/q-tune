@@ -13,7 +13,7 @@
 #include <esp_lcd_panel_io.h>
 #include <esp_lcd_panel_vendor.h>
 #include <esp_lcd_panel_ops.h>
-#include <esp_timer.h>
+#include <esp_timer.h>      
 #include <driver/gpio.h>
 #include <driver/ledc.h>
 #include <driver/spi_master.h>
@@ -44,7 +44,8 @@ esp_err_t lcd_display_brightness_init(void)
         .speed_mode = LEDC_LOW_SPEED_MODE,
         .duty_resolution = LEDC_TIMER_10_BIT,
         .timer_num = 1,
-        .freq_hz = 5000,
+        // .freq_hz = 5000, // Causes a 5kHz spike in our audio output
+        .freq_hz = 30000, // Moves the PWM backlight control frequency out of the audible range
         .clk_cfg = LEDC_AUTO_CLK
     };
 

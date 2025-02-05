@@ -94,6 +94,9 @@ public:
     bool                use1EUFilterFirst       = DEFAULT_USE_1EU_FILTER_FIRST;
 //    float               movingAvgWindow         = DEFAULT_MOVING_AVG_WINDOW;
 
+    int32_t             touchOffsetX            = 0;
+    int32_t             touchOffsetY            = 0;
+
     /**
      * @brief Create the settings object and sets its parameters
      */
