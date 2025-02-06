@@ -240,56 +240,26 @@ void UserSettings::setIsShowingSettings(bool isShowing) {
 }
 
 void UserSettings::advanceToNextButton() {
-    lv_obj_t *screen = screenStack.back();
-    lv_obj_t *scrollable = lv_obj_get_child(screen, 0);
-    ESP_LOGI(TAG, "advanceToNextButton");
-    if (scrollable == NULL) {
-        ESP_LOGI(TAG, "advanceToNextButton - scrollable is NULL");
+    lv_group_t *group = lv_group_get_default();
+    if (group == NULL) {
+        ESP_LOGI(TAG, "advanceToNextButton - group is NULL");
         return;
     }
-    int numOfChildren = lv_obj_get_child_cnt(scrollable);
-    if (numOfChildren == 0) {
-        ESP_LOGI(TAG, "advanceToNextButton - numOfChildren is 0");        
-        return;
-    }
-    lv_obj_t *button = lv_obj_get_child(scrollable, selectedButton);
-    if (button == NULL) {
-        ESP_LOGI(TAG, "advanceToNextButton - button is NULL");
-        return;
-    }
-    lv_obj_remove_state(button, LV_STATE_FOCUSED);
-    selectedButton++;
-    if (selectedButton >= numOfChildren) {
-        // Go back to the top button
-        selectedButton = 0;
-    }
-    button = lv_obj_get_child(scrollable, selectedButton);
-    if (button == NULL) {
-        ESP_LOGI(TAG, "advanceToNextButton - next button is NULL");
-        return;
-    }
-    lv_obj_add_state(button, LV_STATE_FOCUSED);
-    lv_obj_scroll_to_view(button, LV_ANIM_ON);  // Ensure it's visible
+    lv_group_focus_next(group);
 }
 
 void UserSettings::pressFocusedButton() {
-    lv_obj_t *screen = screenStack.back();
-    lv_obj_t *scrollable = lv_obj_get_child(screen, 0);
-    if (scrollable == NULL) {
-        ESP_LOGI(TAG, "pressFocusedButton - scrollable is NULL");
+    lv_group_t *group = lv_group_get_default();
+    if (group == NULL) {
+        ESP_LOGI(TAG, "pressFocusedButton - group is NULL");
         return;
     }
-    int numOfChildren = lv_obj_get_child_cnt(scrollable);
-    if (numOfChildren == 0) {
-        ESP_LOGI(TAG, "pressFocusedButton - numOfChildren is 0");        
+    lv_obj_t *btn = lv_group_get_focused(group);
+    if (btn == NULL) {
+        ESP_LOGI(TAG, "pressFocusedButton - btn is NULL");
         return;
     }
-    lv_obj_t *button = lv_obj_get_child(scrollable, selectedButton);
-    if (button == NULL) {
-        ESP_LOGI(TAG, "pressFocusedButton - button is NULL");
-        return;
-    }
-    lv_obj_send_event(button, LV_EVENT_CLICKED, NULL);
+    lv_obj_send_event(btn, LV_EVENT_CLICKED, NULL);
 }
 
 //
@@ -426,6 +396,27 @@ void UserSettings::showSettings() {
     createMenu(buttonNames, symbolNames, NULL, callbackFunctions, 4);
 }
 
+static lv_group_t * find_group_in_parent(lv_obj_t *parent) {
+    lv_group_t *group = lv_obj_get_group(parent);
+    if (group != NULL) {
+        return group;
+    }
+
+    // Recursively look through children of the parent
+    int numOfChildren = lv_obj_get_child_cnt(parent);
+    if (numOfChildren == 0) {
+        return NULL;
+    }
+    for (int i = 0; i < numOfChildren; i++) {
+        lv_obj_t *child = lv_obj_get_child(parent, i);
+        group = find_group_in_parent(child);
+        if (group != NULL) {
+            return group;
+        }
+    }
+    return NULL;
+}
+
 void UserSettings::createMenu(const char *buttonNames[], const char *buttonSymbols[], lv_palette_t *buttonColors, lv_event_cb_t eventCallbacks[], int numOfButtons) {
     // Create a new screen, add all the buttons to it,
     // add the screen to the stack, and activate the new screen
@@ -446,16 +437,18 @@ void UserSettings::createMenu(const char *buttonNames[], const char *buttonSymbo
 
     lv_obj_t *btn;
     lv_obj_t *label;
+    lv_group_t *group = lv_group_create();
+    lv_group_set_wrap(group, true);
+    lv_group_set_default(group);
 
     int32_t buttonWidthPercentage = 100;
-    selectedButton = 0;
 
     for (int i = 0; i < numOfButtons; i++) {
         ESP_LOGI(TAG, "Creating menu item: %d of %d", i, numOfButtons);
         const char *buttonName = buttonNames[i];
         lv_event_cb_t eventCallback = eventCallbacks[i];
         btn = lv_btn_create(scrollable);
-        if (i == selectedButton) {
+        if (i == 0) {
             lv_obj_add_state(btn, LV_STATE_FOCUSED);
         }
         lv_obj_add_style(btn, &focusedButtonStyle, LV_STATE_FOCUSED);
@@ -482,6 +475,8 @@ void UserSettings::createMenu(const char *buttonNames[], const char *buttonSymbo
                 lv_obj_set_style_bg_color(btn, lv_palette_main(palette), 0);
             }
         }
+
+        lv_group_add_obj(group, btn);
     }
 
     if (screenStack.size() == 1) {
@@ -495,6 +490,7 @@ void UserSettings::createMenu(const char *buttonNames[], const char *buttonSymbo
         lv_label_set_text_static(label, MENU_BTN_EXIT);
         lv_obj_set_style_text_align(btn, LV_TEXT_ALIGN_CENTER, 0);
         lv_obj_align(label, LV_ALIGN_CENTER, 0, 0);
+        lv_group_add_obj(group, btn);
     } else {
         // We're in a submenu - include a back button
         btn = lv_btn_create(scrollable);
@@ -506,6 +502,7 @@ void UserSettings::createMenu(const char *buttonNames[], const char *buttonSymbo
         lv_label_set_text_static(label, MENU_BTN_BACK);
         lv_obj_set_style_text_align(btn, LV_TEXT_ALIGN_CENTER, 0);
         lv_obj_align(label, LV_ALIGN_CENTER, 0, 0);
+        lv_group_add_obj(group, btn);
     }
 
     screenStack.push_back(scr); // Save the new screen on the stack
@@ -527,29 +524,10 @@ void UserSettings::removeCurrentMenu() {
     lv_obj_clean(currentScreen);    // Clean up the screen so memory is cleared from sub items
     lv_obj_del(currentScreen);      // Remove the old screen from memory
 
-    // Restore the selected button
-    selectedButton = 0; // Set the selected button back to the top
-    lv_obj_t *scrollable = lv_obj_get_child(parentScreen, 0);
-    if (scrollable == NULL) {
-        lvgl_port_unlock();
-        return;
-    }
-    int numOfChildren = lv_obj_get_child_cnt(scrollable);
-    if (numOfChildren == 0) {
-        lvgl_port_unlock();
-        return;
-    }
-    for (int i = 0; i < numOfChildren; i++) {
-        // Find the button that was selected
-        lv_obj_t *button = lv_obj_get_child(scrollable, i);
-        if (button == NULL) {
-            lvgl_port_unlock();
-            return;
-        }
-        if (lv_obj_has_state(button, LV_STATE_FOCUSED)) {
-            selectedButton = i;
-            break;
-        }
+    // Restore the default group so it can be navigated with the foot switch
+    lv_group_t *group = find_group_in_parent(parentScreen);
+    if (group != NULL) {
+        lv_group_set_default(group);
     }
 
     lvgl_port_unlock();

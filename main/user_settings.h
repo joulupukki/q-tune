@@ -83,8 +83,6 @@ class UserSettings {
     void advanceToNextButton();
     void pressFocusedButton();
 
-    int selectedButton;
-
 public:
     // User Setting Variables
     TunerState          initialState            = DEFAULT_INITIAL_STATE;
