@@ -144,7 +144,12 @@ void handle_button_press() {
                 footswitch_press_count = 0; // Reset press count after double press
                 vTaskDelay(pdMS_TO_TICKS(200)); // Small delay for visual feedback
             } else if (press_duration < LONG_PRESS_TIME_MS && footswitch_press_count == 1) {
-                start_single_press_timer();
+                if (tunerController->getState() == tunerStateSettings) {
+                    start_single_press_timer();
+                } else {
+                    // Fire a single press right away
+                    single_press_timer_callback(NULL);
+                }
             } else {
                 footswitch_press_count = 0; // Reset press count if it ever hits this condition
             }
