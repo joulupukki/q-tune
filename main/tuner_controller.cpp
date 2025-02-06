@@ -22,10 +22,13 @@
 
 static const char *TAG = "CONTROLLER";
 
-TunerController::TunerController(tuner_state_will_change_cb_t willChange, tuner_state_did_change_cb_t didChange) {
+TunerController::TunerController(tuner_state_will_change_cb_t willChange,
+                tuner_state_did_change_cb_t didChange,
+                tuner_footswitch_pressed_cb_t footswitchPressed) {
     tunerState = tunerStateBooting;
     stateWillChangeCallback = willChange;
     stateDidChangeCallback = didChange;
+    footswitchPressedCallback = footswitchPressed;
 }
 
 TunerState TunerController::getState() {
@@ -43,4 +46,8 @@ void TunerController::setState(TunerState new_state) {
     tunerState = new_state;
     portEXIT_CRITICAL(&tuner_state_mutex);
     stateDidChangeCallback(old_state, new_state);
+}
+
+void TunerController::footswitchPressed(FootswitchPress press) {
+    footswitchPressedCallback(press);
 }

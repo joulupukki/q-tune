@@ -67,6 +67,8 @@ class UserSettings {
     nvs_handle_t    nvsHandle;
     bool isShowingMenu = false;
 
+    lv_style_t focusedButtonStyle;
+
     settings_will_show_cb_t settingsWillShowCallback;
     settings_changed_cb_t settingsChangedCallback;
     settings_will_exit_cb_t settingsWillExitCallback;
@@ -77,6 +79,10 @@ class UserSettings {
     /// @brief Set whether the menu is showing (thread safe).
     /// @param isShowing 
     void setIsShowingSettings(bool isShowing);
+
+    void advanceToNextButton();
+
+    int selectedButton;
 
 public:
     // User Setting Variables
@@ -141,6 +147,8 @@ public:
     void exitSettings();
 
     void rotateScreenTo(TunerOrientation newRotation);
+
+    void footswitchPressed(FootswitchPress press);
 };
 
 #endif

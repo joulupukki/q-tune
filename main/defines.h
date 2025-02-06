@@ -26,8 +26,9 @@
 #define FOOT_SWITCH_GPIO                GPIO_NUM_27
 #define RELAY_GPIO                      GPIO_NUM_22
 
-#define LONG_PRESS_THRESHOLD            2000 // milliseconds
-#define DOUBLE_CLICK_THRESHOLD          500 // milliseconds
+#define LONG_PRESS_TIME_MS              1000 // milliseconds
+#define DOUBLE_PRESS_TIME_MS            250 // milliseconds
+#define DEBOUNCE_TIME_MS                50 // milliseconds
 
 //
 // Default User Settings

@@ -56,24 +56,19 @@ GPIO 27 - Momentary foot switch input
 static const char *TAG = "TUNER";
 
 void tuner_state_will_change_cb(TunerState old_state, TunerState new_state) {
-    ESP_LOGI(TAG, "tuner_state_will_change_cb: %d > %d", old_state, new_state);
+    // ESP_LOGI(TAG, "tuner_state_will_change_cb: %d > %d", old_state, new_state);
 }
 
 void tuner_state_did_change_cb(TunerState old_state, TunerState new_state) {
     // Suspend and resume tasks as needed.
     switch (new_state) {
     case tunerStateSettings:
-        vTaskSuspend(gpioTaskHandle); // Without pausing this NVS failed to work (crashes the app)
         vTaskSuspend(detectorTaskHandle);
         break;
     case tunerStateStandby:
         vTaskSuspend(detectorTaskHandle);
         break;
     case tunerStateTuning:
-        // eTaskState gpioTaskState = eTaskGetState(gpioTaskHandle);
-        // if (gpioTaskState == eSuspended) {
-        // }
-        vTaskResume(gpioTaskHandle);
         vTaskResume(detectorTaskHandle);
         break;
     case tunerStateBooting:
@@ -82,6 +77,24 @@ void tuner_state_did_change_cb(TunerState old_state, TunerState new_state) {
 
     // Tell the UI about the update so it can update.
     tuner_gui_task_tuner_state_changed(old_state, new_state);
+}
+
+void footswitch_pressed_cb(FootswitchPress press) {
+    TunerState current_state = tunerController->getState();
+    switch (current_state) {
+    case tunerStateStandby:
+        break;
+    case tunerStateTuning:
+        if (press == footswitchLongPress) {
+            tunerController->setState(tunerStateSettings);
+        }
+        break;
+    case tunerStateSettings:
+        userSettings->footswitchPressed(press);
+        break;
+    case tunerStateBooting:
+        break;
+    }
 }
 
 void user_settings_will_show_cb() {
@@ -101,9 +114,9 @@ extern "C" void app_main() {
     userSettings = new UserSettings(user_settings_will_show_cb, user_settings_changed_cb, user_settings_will_exit_cb);
     user_settings_changed_cb(); // Calling this allows the pitch detector and tuner UI to initialize properly with current user
 
-    tunerController = new TunerController(tuner_state_will_change_cb, tuner_state_did_change_cb);
+    tunerController = new TunerController(tuner_state_will_change_cb, tuner_state_did_change_cb, footswitch_pressed_cb);
 
-    // Start the GPIO Task
+    // // Start the GPIO Task
     xTaskCreatePinnedToCore(
         gpio_task,          // callback function
         "gpio",             // debug name of the task

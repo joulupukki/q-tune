@@ -239,6 +239,38 @@ void UserSettings::setIsShowingSettings(bool isShowing) {
     portEXIT_CRITICAL(&isShowingMenu_mutex);
 }
 
+void UserSettings::advanceToNextButton() {
+    lv_obj_t *screen = screenStack.back();
+    lv_obj_t *scrollable = lv_obj_get_child(screen, 0);
+    ESP_LOGI(TAG, "advanceToNextButton");
+    if (scrollable == NULL) {
+        ESP_LOGI(TAG, "advanceToNextButton - scrollable is NULL");
+        return;
+    }
+    int numOfChildren = lv_obj_get_child_cnt(scrollable);
+    if (numOfChildren == 0) {
+        ESP_LOGI(TAG, "advanceToNextButton - numOfChildren is 0");        
+        return;
+    }
+    lv_obj_t *button = lv_obj_get_child(scrollable, selectedButton);
+    if (button == NULL) {
+        ESP_LOGI(TAG, "advanceToNextButton - button is NULL");
+        return;
+    }
+    lv_obj_remove_state(button, LV_STATE_FOCUSED);
+    selectedButton++;
+    if (selectedButton >= numOfChildren) {
+        ESP_LOGI(TAG, "advanceToNextButton - selectedButton >= numOfChildren");
+        selectedButton = 0;
+    }
+    button = lv_obj_get_child(scrollable, selectedButton);
+    if (button == NULL) {
+        ESP_LOGI(TAG, "advanceToNextButton - next button is NULL");
+        return;
+    }
+    lv_obj_add_state(button, LV_STATE_FOCUSED);
+}
+
 //
 // PUBLIC Methods
 //
@@ -365,6 +397,11 @@ void UserSettings::showSettings() {
         handleDebugButtonClicked,
         handleAboutButtonClicked,
     };
+
+    lv_style_init(&focusedButtonStyle);
+    lv_style_set_border_color(&focusedButtonStyle, lv_color_white());
+    lv_style_set_border_width(&focusedButtonStyle, 2);
+
     createMenu(buttonNames, symbolNames, NULL, callbackFunctions, 4);
 }
 
@@ -390,12 +427,17 @@ void UserSettings::createMenu(const char *buttonNames[], const char *buttonSymbo
     lv_obj_t *label;
 
     int32_t buttonWidthPercentage = 100;
+    selectedButton = 0;
 
     for (int i = 0; i < numOfButtons; i++) {
         ESP_LOGI(TAG, "Creating menu item: %d of %d", i, numOfButtons);
         const char *buttonName = buttonNames[i];
         lv_event_cb_t eventCallback = eventCallbacks[i];
         btn = lv_btn_create(scrollable);
+        if (i == selectedButton) {
+            lv_obj_add_state(btn, LV_STATE_FOCUSED);
+        }
+        lv_obj_add_style(btn, &focusedButtonStyle, LV_STATE_FOCUSED);
         lv_obj_set_width(btn, lv_pct(buttonWidthPercentage));
         lv_obj_set_user_data(btn, this);
         lv_obj_add_event_cb(btn, eventCallback, LV_EVENT_CLICKED, btn);
@@ -424,16 +466,18 @@ void UserSettings::createMenu(const char *buttonNames[], const char *buttonSymbo
     if (screenStack.size() == 1) {
         // We're on the top menu - include an exit button
         btn = lv_btn_create(scrollable);
+        lv_obj_add_style(btn, &focusedButtonStyle, LV_STATE_FOCUSED);
         lv_obj_set_user_data(btn, this);
         lv_obj_set_width(btn, lv_pct(buttonWidthPercentage));
         lv_obj_add_event_cb(btn, handleExitButtonClicked, LV_EVENT_CLICKED, btn);
         label = lv_label_create(btn);
         lv_label_set_text_static(label, MENU_BTN_EXIT);
-        lv_obj_set_style_text_align(btn, LV_TEXT_ALIGN_CENTER, 0);
-        lv_obj_align(label, LV_ALIGN_CENTER, 0, 0);
+        // lv_obj_set_style_text_align(btn, LV_TEXT_ALIGN_CENTER, 0);
+        // lv_obj_align(label, LV_ALIGN_CENTER, 0, 0);
     } else {
         // We're in a submenu - include a back button
         btn = lv_btn_create(scrollable);
+        lv_obj_add_style(btn, &focusedButtonStyle, LV_STATE_FOCUSED);
         lv_obj_set_user_data(btn, this);
         lv_obj_set_width(btn, lv_pct(buttonWidthPercentage));
         lv_obj_add_event_cb(btn, handleBackButtonClicked, LV_EVENT_CLICKED, btn);
@@ -1264,4 +1308,24 @@ static void handleBackButtonClicked(lv_event_t *e) {
     lvgl_port_unlock();
     settings->saveSettings(); // TODO: Figure out a better way of doing this than saving every time
     settings->removeCurrentMenu();
+}
+
+void UserSettings::footswitchPressed(FootswitchPress press) {
+    switch (press) {
+    case footswitchSinglePress:
+        ESP_LOGI(TAG, "Settings: Single press");
+        advanceToNextButton();
+        break;
+    case footswitchDoublePress:
+        ESP_LOGI(TAG, "Settings: Double press");
+        break;
+    case footswitchLongPress:
+        ESP_LOGI(TAG, "Settings: Long press");
+        if (screenStack.size() > 2) {
+            removeCurrentMenu();
+        } else {
+            tunerController->setState(tunerStateTuning);
+        }
+        break;
+    }
 }
