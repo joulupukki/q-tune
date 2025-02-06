@@ -42,6 +42,7 @@ int footswitch_press_count = 0;
 int64_t footswitch_start_time = 0;
 int64_t footswitch_last_press_time = 0;
 bool footswitch_long_press_triggered = false;
+esp_timer_handle_t single_press_timer;
 
 //
 // Local Function Declarations
@@ -52,6 +53,9 @@ void ensure_relay_state();
 void handle_single_press(void *param);
 void handle_double_press(void *param);
 void handle_long_press(void *param);
+void single_press_timer_callback(void* arg);
+void start_single_press_timer();
+void cancel_single_press_timer();
 
 void gpio_task(void *pvParameter) {
     ESP_LOGI(TAG, "GPIO task started");
@@ -124,6 +128,7 @@ void handle_button_press() {
         if (press_duration >= LONG_PRESS_TIME_MS && !footswitch_long_press_triggered) {
             lv_async_call(handle_long_press, NULL);
             footswitch_long_press_triggered = true; // Ensure long press is only triggered once
+            footswitch_press_count = 0; // Reset press count after a long press
             vTaskDelay(pdMS_TO_TICKS(200)); // Small delay for visual feedback
         }
     }
@@ -134,11 +139,14 @@ void handle_button_press() {
             int64_t press_duration = (esp_timer_get_time() / 1000) - footswitch_start_time;
 
             if (footswitch_press_count == 2) {
+                cancel_single_press_timer(); // kill the timer if it's running
                 lv_async_call(handle_double_press, NULL);
+                footswitch_press_count = 0; // Reset press count after double press
                 vTaskDelay(pdMS_TO_TICKS(200)); // Small delay for visual feedback
-            } else if (press_duration < LONG_PRESS_TIME_MS) {
-                lv_async_call(handle_single_press, NULL);
-                vTaskDelay(pdMS_TO_TICKS(200)); // Small delay for visual feedback
+            } else if (press_duration < LONG_PRESS_TIME_MS && footswitch_press_count == 1) {
+                start_single_press_timer();
+            } else {
+                footswitch_press_count = 0; // Reset press count if it ever hits this condition
             }
         }
     }
@@ -204,4 +212,33 @@ void handle_double_press(void *param) {
 void handle_long_press(void *param) {
     ESP_LOGI(TAG, "LONG PRESS detected");
     tunerController->footswitchPressed(footswitchLongPress);
+}
+
+void single_press_timer_callback(void* arg) {
+    lv_async_call(handle_single_press, NULL);
+    footswitch_press_count = 0; // Reset press count after single press
+    vTaskDelay(pdMS_TO_TICKS(200)); // Small delay for visual feedback
+}
+
+void start_single_press_timer() {
+    if (single_press_timer != NULL) {
+        esp_timer_stop(single_press_timer);
+        esp_timer_delete(single_press_timer);
+    }
+
+    const esp_timer_create_args_t single_press_timer_args = {
+        .callback = &single_press_timer_callback,
+        .name = "single_press_timer"
+    };
+
+    esp_timer_create(&single_press_timer_args, &single_press_timer);
+    esp_timer_start_once(single_press_timer, DOUBLE_PRESS_TIME_MS * 1000); // Convert ms to us
+}
+
+void cancel_single_press_timer() {
+    if (single_press_timer != NULL) {
+        esp_timer_stop(single_press_timer);
+        esp_timer_delete(single_press_timer);
+        single_press_timer = NULL;
+    }
 }

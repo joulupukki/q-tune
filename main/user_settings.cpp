@@ -260,7 +260,7 @@ void UserSettings::advanceToNextButton() {
     lv_obj_remove_state(button, LV_STATE_FOCUSED);
     selectedButton++;
     if (selectedButton >= numOfChildren) {
-        ESP_LOGI(TAG, "advanceToNextButton - selectedButton >= numOfChildren");
+        // Go back to the top button
         selectedButton = 0;
     }
     button = lv_obj_get_child(scrollable, selectedButton);
@@ -269,6 +269,27 @@ void UserSettings::advanceToNextButton() {
         return;
     }
     lv_obj_add_state(button, LV_STATE_FOCUSED);
+    lv_obj_scroll_to_view(button, LV_ANIM_ON);  // Ensure it's visible
+}
+
+void UserSettings::pressFocusedButton() {
+    lv_obj_t *screen = screenStack.back();
+    lv_obj_t *scrollable = lv_obj_get_child(screen, 0);
+    if (scrollable == NULL) {
+        ESP_LOGI(TAG, "pressFocusedButton - scrollable is NULL");
+        return;
+    }
+    int numOfChildren = lv_obj_get_child_cnt(scrollable);
+    if (numOfChildren == 0) {
+        ESP_LOGI(TAG, "pressFocusedButton - numOfChildren is 0");        
+        return;
+    }
+    lv_obj_t *button = lv_obj_get_child(scrollable, selectedButton);
+    if (button == NULL) {
+        ESP_LOGI(TAG, "pressFocusedButton - button is NULL");
+        return;
+    }
+    lv_obj_send_event(button, LV_EVENT_CLICKED, NULL);
 }
 
 //
@@ -472,8 +493,8 @@ void UserSettings::createMenu(const char *buttonNames[], const char *buttonSymbo
         lv_obj_add_event_cb(btn, handleExitButtonClicked, LV_EVENT_CLICKED, btn);
         label = lv_label_create(btn);
         lv_label_set_text_static(label, MENU_BTN_EXIT);
-        // lv_obj_set_style_text_align(btn, LV_TEXT_ALIGN_CENTER, 0);
-        // lv_obj_align(label, LV_ALIGN_CENTER, 0, 0);
+        lv_obj_set_style_text_align(btn, LV_TEXT_ALIGN_CENTER, 0);
+        lv_obj_align(label, LV_ALIGN_CENTER, 0, 0);
     } else {
         // We're in a submenu - include a back button
         btn = lv_btn_create(scrollable);
@@ -505,6 +526,31 @@ void UserSettings::removeCurrentMenu() {
 
     lv_obj_clean(currentScreen);    // Clean up the screen so memory is cleared from sub items
     lv_obj_del(currentScreen);      // Remove the old screen from memory
+
+    // Restore the selected button
+    selectedButton = 0; // Set the selected button back to the top
+    lv_obj_t *scrollable = lv_obj_get_child(parentScreen, 0);
+    if (scrollable == NULL) {
+        lvgl_port_unlock();
+        return;
+    }
+    int numOfChildren = lv_obj_get_child_cnt(scrollable);
+    if (numOfChildren == 0) {
+        lvgl_port_unlock();
+        return;
+    }
+    for (int i = 0; i < numOfChildren; i++) {
+        // Find the button that was selected
+        lv_obj_t *button = lv_obj_get_child(scrollable, i);
+        if (button == NULL) {
+            lvgl_port_unlock();
+            return;
+        }
+        if (lv_obj_has_state(button, LV_STATE_FOCUSED)) {
+            selectedButton = i;
+            break;
+        }
+    }
 
     lvgl_port_unlock();
 }
@@ -1318,6 +1364,7 @@ void UserSettings::footswitchPressed(FootswitchPress press) {
         break;
     case footswitchDoublePress:
         ESP_LOGI(TAG, "Settings: Double press");
+        pressFocusedButton();
         break;
     case footswitchLongPress:
         ESP_LOGI(TAG, "Settings: Long press");

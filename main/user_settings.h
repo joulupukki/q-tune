@@ -81,6 +81,7 @@ class UserSettings {
     void setIsShowingSettings(bool isShowing);
 
     void advanceToNextButton();
+    void pressFocusedButton();
 
     int selectedButton;
 
