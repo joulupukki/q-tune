@@ -107,8 +107,7 @@ static void handleTunerButtonClicked(lv_event_t *e);
 static void handleTunerModeButtonClicked(lv_event_t *e);
 static void handleTunerModeSelected(lv_event_t *e);
 static void handleInTuneThresholdButtonClicked(lv_event_t *e);
-static void handleInTuneThresholdButtonValueClicked(lv_event_t *e);
-static void handleInTuneThresholdRoller(lv_event_t *e);
+static void handleInTuneThresholdRadio(lv_event_t *e);
 
 static void handleDisplayButtonClicked(lv_event_t *e);
 static void handleBrightnessButtonClicked(lv_event_t *e);
@@ -259,7 +258,10 @@ void UserSettings::pressFocusedButton() {
         ESP_LOGI(TAG, "pressFocusedButton - btn is NULL");
         return;
     }
-    lv_obj_send_event(btn, LV_EVENT_CLICKED, NULL);
+    const lv_obj_class_t *btnClass = lv_obj_get_class(btn);
+    if (btnClass == &lv_button_class || btnClass == &lv_checkbox_class) {
+        lv_obj_send_event(btn, LV_EVENT_CLICKED, NULL);
+    }
 }
 
 //
@@ -392,6 +394,12 @@ void UserSettings::showSettings() {
     lv_style_init(&focusedButtonStyle);
     lv_style_set_border_color(&focusedButtonStyle, lv_color_white());
     lv_style_set_border_width(&focusedButtonStyle, 2);
+
+    lv_style_init(&radioStyle);
+    lv_style_set_radius(&radioStyle, LV_RADIUS_CIRCLE);
+
+    lv_style_init(&radioCheckStyle);
+    lv_style_set_bg_img_src(&radioCheckStyle, NULL);
 
     createMenu(buttonNames, symbolNames, NULL, callbackFunctions, 4);
 }
@@ -587,50 +595,80 @@ void UserSettings::createSlider(const char *sliderName, int32_t minRange, int32_
     lvgl_port_unlock();
 }
 
-void UserSettings::createRoller(const char *title, const char *itemsString, lv_event_cb_t rollerCallback, uint8_t *rollerValue) {
+void UserSettings::createRadioList(const char *title,
+                                   const char *itemStrings[],
+                                   int numOfItems,
+                                   lv_event_cb_t radioCallback,
+                                   uint8_t *radioValue) {
     if (!lvgl_port_lock(0)) {
         return;
     }
     lv_obj_t *scr = lv_obj_create(NULL);
 
-    // Create a scrollable container
-    lv_obj_t *scrollable = lv_obj_create(scr);
-    lv_obj_set_size(scrollable, lv_pct(100), lv_pct(100)); // Full size of the parent
-    lv_obj_set_flex_flow(scrollable, LV_FLEX_FLOW_COLUMN); // Arrange children in a vertical list
-    lv_obj_set_scroll_dir(scrollable, LV_DIR_VER);         // Enable vertical scrolling
-    lv_obj_set_scrollbar_mode(scrollable, LV_SCROLLBAR_MODE_AUTO); // Show scrollbar when scrolling
-    lv_obj_set_style_pad_all(scrollable, 10, 0);           // Add padding for aesthetics
-    lv_obj_set_style_bg_color(scrollable, lv_color_black(), 0); // Optional background color
+    // The settings value is 1-based, but the radio buttons are 0-based so make
+    // adjustments here to make sure the correct button is selected.
+    uint8_t zeroBasedValue = *radioValue;
+    if (zeroBasedValue > numOfItems) {
+        zeroBasedValue = 0;
+    }
+    if (zeroBasedValue > 0) {
+        zeroBasedValue--;
+    }
+
+    lv_group_t *group = lv_group_create();
+    lv_group_set_wrap(group, true);
+    lv_group_set_default(group);
 
     // Show the title of the screen at the top middle
-    lv_obj_t *label = lv_label_create(scrollable);
+    lv_obj_t *label = lv_label_create(scr);
     lv_label_set_text_static(label, title);
     lv_obj_set_width(label, lv_pct(100));
     lv_obj_set_style_text_align(label, LV_TEXT_ALIGN_CENTER, 0);
+    lv_obj_align(label, LV_ALIGN_TOP_MID, 0, 0);
+    lv_obj_set_style_pad_all(label, 10, 0);           // Add padding for aesthetics
 
-    // lv_obj_t *spacer = lv_obj_create(scrollable);
-    // lv_obj_remove_style_all(spacer);
-    // lv_obj_set_width(spacer, lv_pct(100));
-    // lv_obj_set_flex_grow(spacer, 2);
+    // Create a container
+    lv_obj_t *cont1 = lv_obj_create(scr);
+    lv_obj_set_size(cont1, LV_SIZE_CONTENT, lv_pct(60));
+    lv_obj_set_flex_flow(cont1, LV_FLEX_FLOW_COLUMN); // Arrange children in a vertical list
+    lv_obj_set_style_pad_all(cont1, 10, 0);           // Add padding for aesthetics
+    lv_obj_set_style_bg_color(cont1, lv_color_black(), 0); // Optional background color
+    lv_obj_add_event_cb(cont1, radioCallback, LV_EVENT_CLICKED, (void *)radioValue);
+    lv_obj_align(cont1, LV_ALIGN_CENTER, 0, 0);
+    lv_obj_set_user_data(cont1, this); // Strange way of passing UserSettings to the callback handler, but this is how we're doing it
 
-    lv_obj_t * roller = lv_roller_create(scrollable);
-    lv_obj_set_user_data(roller, this);
-    lv_roller_set_options(roller, itemsString, LV_ROLLER_MODE_NORMAL);
-    lv_roller_set_visible_row_count(roller, 4);
-    lv_roller_set_selected(roller, *rollerValue - 1, LV_ANIM_OFF); // TODO: This "-1" is for the In-Tune Threshold and this function should be made to be more generic
-    lv_obj_set_width(roller, lv_pct(100));
-    lv_obj_set_flex_grow(roller, 2);
-    lv_obj_add_event_cb(roller, rollerCallback, LV_EVENT_ALL, rollerValue);
+    // lv_obj_t *scrollToItem = NULL;
+    for (int i = 0; i < numOfItems; i++) {
+        lv_obj_t * obj = lv_checkbox_create(cont1);
+        lv_checkbox_set_text(obj, itemStrings[i]);
+        lv_obj_add_flag(obj, LV_OBJ_FLAG_EVENT_BUBBLE);
+        lv_obj_add_style(obj, &radioStyle, LV_PART_INDICATOR);
+        lv_obj_add_style(obj, &radioCheckStyle, LV_PART_INDICATOR | LV_STATE_CHECKED);
+        lv_group_add_obj(group, obj);
+        lv_obj_add_style(obj, &focusedButtonStyle, LV_STATE_FOCUSED);
+        if (i == zeroBasedValue) {
+            lv_obj_add_state(obj, LV_STATE_CHECKED);
+            // scrollToItem = obj;
+        }
+    }
 
+    // // Make sure the selected item is in view
+    // if (scrollToItem != NULL) {
+    //     lv_obj_scroll_to_view(scrollToItem, LV_ANIM_OFF);
+    // }
 
-    lv_obj_t *btn = lv_btn_create(scrollable);
+    lv_obj_t *btn = lv_btn_create(scr);
+    lv_obj_add_style(btn, &focusedButtonStyle, LV_STATE_FOCUSED);
+    lv_group_add_obj(group, btn);
     lv_obj_set_user_data(btn, this);
     lv_obj_set_width(btn, lv_pct(100));
     lv_obj_add_event_cb(btn, handleBackButtonClicked, LV_EVENT_CLICKED, btn);
     label = lv_label_create(btn);
     lv_label_set_text_static(label, MENU_BTN_BACK);
-    lv_obj_set_style_text_align(btn, LV_TEXT_ALIGN_CENTER, 0);
+    lv_obj_set_style_text_align(label, LV_TEXT_ALIGN_CENTER, 0);
     lv_obj_align(label, LV_ALIGN_CENTER, 0, 0);
+    lv_obj_align(btn, LV_ALIGN_BOTTOM_MID, 0, 0);
+    lv_obj_set_style_pad_all(btn, 10, 0);
 
     screenStack.push_back(scr); // Save the new screen on the stack
     lv_screen_load(scr);        // Activate the new screen
@@ -873,32 +911,47 @@ static void handleInTuneThresholdButtonClicked(lv_event_t *e) {
     }
     settings = (UserSettings *)lv_obj_get_user_data((lv_obj_t *)lv_event_get_target(e));
     lvgl_port_unlock();
-    settings->createRoller((const char *)MENU_BTN_IN_TUNE_THRESHOLD,
-                           (const char *)"+/- 1 cent\n"
-                           "+/- 2 cents\n"
-                           "+/- 3 cents\n"
-                           "+/- 4 cents\n"
-                           "+/- 5 cents\n"
-                           "+/- 6 cents",
-                           handleInTuneThresholdRoller,
-                           &settings->inTuneCentsWidth);
+    const char *buttonNames[] = {
+        "+/- 1 cent",
+        "+/- 2 cents",
+        "+/- 3 cents",
+        "+/- 4 cents",
+        "+/- 5 cents",
+        "+/- 6 cents"
+    };
+    settings->createRadioList((const char *)MENU_BTN_IN_TUNE_THRESHOLD, 
+                               buttonNames,
+                               sizeof(buttonNames) / sizeof(buttonNames[0]),
+                               handleInTuneThresholdRadio,
+                               &settings->inTuneCentsWidth);
 }
 
-static void handleInTuneThresholdRoller(lv_event_t *e) {
-    UserSettings *settings;
+static void handleInTuneThresholdRadio(lv_event_t *e) {
     if (!lvgl_port_lock(0)) {
         return;
     }
-    lv_obj_t *roller = (lv_obj_t *)lv_event_get_target(e);
-    uint8_t *rollerValue = (uint8_t *)lv_event_get_user_data(e);
 
-    lv_event_code_t code = lv_event_get_code(e);
-    if(code == LV_EVENT_VALUE_CHANGED) {
-        uint32_t selectedIndex = lv_roller_get_selected(roller);
-        ESP_LOGI(TAG, "In Tune Threshold Roller index selected: %ld", selectedIndex);
-        *rollerValue = selectedIndex + 1; // TODO: Make this work for other things too
+    uint8_t *thresholdSetting = (uint8_t *)lv_event_get_user_data(e); // this is 1-based
+    int32_t radioIndex = ((int32_t)*thresholdSetting) - 1;
+    if (radioIndex < 0) {
+        radioIndex = 0;
     }
 
+    lv_obj_t * cont = (lv_obj_t *)lv_event_get_current_target(e);
+    UserSettings *settings = (UserSettings *)lv_obj_get_user_data(cont);
+    lv_obj_t * act_cb = (lv_obj_t *)lv_event_get_target(e);
+    lv_obj_t * old_cb = (lv_obj_t *)lv_obj_get_child(cont, radioIndex);
+
+    /*Do nothing if the container was clicked*/
+    if(act_cb == cont) return;
+
+    lv_obj_remove_state(old_cb, LV_STATE_CHECKED);   /*Uncheck the previous radio button*/
+    lv_obj_add_state(act_cb, LV_STATE_CHECKED);     /*Uncheck the current radio button*/
+
+    *thresholdSetting = lv_obj_get_index(act_cb) + 1; // Adjust before storing into settings for 1-based values
+    ESP_LOGI(TAG, "New In Tune Threshold setting: %d", *thresholdSetting);
+
+    settings->saveSettings();
     lvgl_port_unlock();
 }
 

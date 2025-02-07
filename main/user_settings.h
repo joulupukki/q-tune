@@ -68,6 +68,8 @@ class UserSettings {
     bool isShowingMenu = false;
 
     lv_style_t focusedButtonStyle;
+    lv_style_t radioStyle;
+    lv_style_t radioCheckStyle;
 
     settings_will_show_cb_t settingsWillShowCallback;
     settings_changed_cb_t settingsChangedCallback;
@@ -137,6 +139,14 @@ public:
     void createMenu(const char *buttonNames[], const char *buttonSymbols[], lv_palette_t *buttonColors, lv_event_cb_t eventCallbacks[], int numOfButtons);
     void removeCurrentMenu();
     void createSlider(const char *sliderName, int32_t minRange, int32_t maxRange, lv_event_cb_t sliderCallback, float *sliderValue);
+
+    /// @brief Create a screen that shows a radio list.
+    /// @param title The title of the radio list/setting.
+    /// @param itemStrings The items to show in the radio list.
+    /// @param numOfItems Number of items in the `itemStrings` array.
+    /// @param radioCallback A callback function that will be called when a radio item is selected.
+    /// @param radioValue Pointer to the user setting (1-based index).
+    void createRadioList(const char *title, const char *itemStrings[], int numOfItems, lv_event_cb_t radioCallback, uint8_t *radioValue);
     void createRoller(const char *title, const char *itemsString, lv_event_cb_t rollerCallback, uint8_t *rollerValue);
     void createSpinbox(const char *title, uint32_t minRange, uint32_t maxRange, uint32_t digitCount, uint32_t separatorPosition, float *spinboxValue, float conversionFactor);
 
