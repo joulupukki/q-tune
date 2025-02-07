@@ -101,6 +101,10 @@ public:
     bool                use1EUFilterFirst       = DEFAULT_USE_1EU_FILTER_FIRST;
 //    float               movingAvgWindow         = DEFAULT_MOVING_AVG_WINDOW;
 
+    /// @brief This is used when dealing with a setting that doesn't use a
+    /// uint8_t for its storage when dealing with a radio list.
+    uint8_t currentSettingIndex;
+
     /**
      * @brief Create the settings object and sets its parameters
      */
@@ -147,7 +151,7 @@ public:
     /// @param radioCallback A callback function that will be called when a radio item is selected.
     /// @param radioValue Pointer to the user setting.
     /// @param valueOffset The offset to add to the radio value when saving it to the user settings.
-    void createRadioList(const char *title, const char *itemStrings[], int numOfItems, lv_event_cb_t radioCallback, uint8_t *radioValue, int valueOffset);
+    void createRadioList(const char *title, const char *itemStrings[], int numOfItems, const lv_palette_t *itemColors, lv_event_cb_t radioCallback, uint8_t *radioValue, int valueOffset);
     void createRoller(const char *title, const char *itemsString, lv_event_cb_t rollerCallback, uint8_t *rollerValue);
     void createSpinbox(const char *title, uint32_t minRange, uint32_t maxRange, uint32_t digitCount, uint32_t separatorPosition, float *spinboxValue, float conversionFactor);
 

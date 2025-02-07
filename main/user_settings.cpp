@@ -114,15 +114,9 @@ static void handleBrightnessButtonClicked(lv_event_t *e);
 static void handleBrightnessSelected(lv_event_t *e);
 
 static void handleNoteColorButtonClicked(lv_event_t *e);
+static lv_palette_t paletteForSettingIndex(uint8_t settingIndex);
+static uint8_t settingIndexForPalette(lv_palette_t palette);
 static void handleNoteColorSelected(lv_event_t *e);
-static void handleNoteColorWhiteSelected(lv_event_t *e);
-static void handleNoteColorRedSelected(lv_event_t *e);
-static void handleNoteColorPinkSelected(lv_event_t *e);
-static void handleNoteColorPurpleSelected(lv_event_t *e);
-static void handleNoteColorBlueSelected(lv_event_t *e);
-static void handleNoteColorGreenSelected(lv_event_t *e);
-static void handleNoteColorOrangeSelected(lv_event_t *e);
-static void handleNoteColorYellowSelected(lv_event_t *e);
 
 static void handleInitialScreenButtonClicked(lv_event_t *e);
 static void handleInitialStandbyButtonClicked(lv_event_t *e);
@@ -272,6 +266,7 @@ UserSettings::UserSettings(settings_will_show_cb_t showCallback, settings_change
     settingsWillShowCallback = showCallback;
     settingsChangedCallback = changedCallback;
     settingsWillExitCallback = exitCallback;
+    currentSettingIndex = 0;
     loadSettings();
 }
 
@@ -598,6 +593,7 @@ void UserSettings::createSlider(const char *sliderName, int32_t minRange, int32_
 void UserSettings::createRadioList(const char *title,
                                    const char *itemStrings[],
                                    int numOfItems,
+                                   const lv_palette_t *itemColors,
                                    lv_event_cb_t radioCallback,
                                    uint8_t *radioValue,
                                    int valueOffset) {
@@ -635,6 +631,7 @@ void UserSettings::createRadioList(const char *title,
     lv_obj_set_style_bg_color(cont1, lv_color_black(), 0); // Optional background color
     lv_obj_add_event_cb(cont1, radioCallback, LV_EVENT_CLICKED, (void *)radioValue);
     lv_obj_align(cont1, LV_ALIGN_CENTER, 0, 0);
+    lv_obj_set_user_data(cont1, this); // Pass UserSettings object to the event callback
 
     // lv_obj_t *scrollToItem = NULL;
     for (int i = 0; i < numOfItems; i++) {
@@ -648,6 +645,14 @@ void UserSettings::createRadioList(const char *title,
         if (i == zeroBasedValue) {
             lv_obj_add_state(obj, LV_STATE_CHECKED);
             // scrollToItem = obj;
+        }
+        if (itemColors != NULL) {
+            // Set the color of the checkbox text
+            if (itemColors[i] == LV_PALETTE_NONE) {
+                lv_obj_set_style_text_color(obj, lv_color_white(), 0);
+            } else {
+                lv_obj_set_style_text_color(obj, lv_palette_main(itemColors[i]), 0);
+            }
         }
     }
 
@@ -872,6 +877,7 @@ static void handleTunerModeButtonClicked(lv_event_t *e) {
     settings->createRadioList((const char *)MENU_BTN_TUNER_MODE, 
                                buttonNames,
                                num_of_available_guis,
+                               NULL,
                                handleTunerModeSelected,
                                &settings->tunerGUIIndex,
                                0); // This setting is 0-based
@@ -927,6 +933,7 @@ static void handleInTuneThresholdButtonClicked(lv_event_t *e) {
     settings->createRadioList((const char *)MENU_BTN_IN_TUNE_THRESHOLD, 
                                buttonNames,
                                sizeof(buttonNames) / sizeof(buttonNames[0]),
+                               NULL,
                                handleInTuneThresholdRadio,
                                &settings->inTuneCentsWidth,
                                1); // this setting is 1-based instead of 0-based
@@ -1005,6 +1012,7 @@ static void handleBrightnessButtonClicked(lv_event_t *e) {
     settings->createRadioList((const char *)MENU_BTN_BRIGHTNESS, 
                                buttonNames,
                                sizeof(buttonNames) / sizeof(buttonNames[0]),
+                               NULL,
                                handleBrightnessSelected,
                                &settings->displayBrightness,
                                0); // a 0-based setting
@@ -1068,62 +1076,90 @@ static void handleNoteColorButtonClicked(lv_event_t *e) {
         LV_PALETTE_ORANGE,
         LV_PALETTE_YELLOW,
     };
-    lv_event_cb_t callbackFunctions[] = {
-        handleNoteColorWhiteSelected,
-        handleNoteColorRedSelected,
-        handleNoteColorPinkSelected,
-        handleNoteColorPurpleSelected,
-        handleNoteColorBlueSelected,
-        handleNoteColorGreenSelected,
-        handleNoteColorOrangeSelected,
-        handleNoteColorYellowSelected,
-    };
-    settings->createMenu(buttonNames, NULL, buttonColors, callbackFunctions, 8);
+    settings->currentSettingIndex = settingIndexForPalette(settings->noteNamePalette);
+    settings->createRadioList((const char *)MENU_BTN_NOTE_COLOR, 
+                               buttonNames,
+                               sizeof(buttonNames) / sizeof(buttonNames[0]),
+                               buttonColors,
+                               handleNoteColorSelected,
+                               &settings->currentSettingIndex,
+                               0); // a 0-based setting
 }
 
-static void handleNoteColorSelected(lv_event_t *e, lv_palette_t palette) {
-    ESP_LOGI(TAG, "Note Color Selection clicked");
+static lv_palette_t paletteForSettingIndex(uint8_t settingIndex) {
+    switch (settingIndex) {
+        case 0:
+            return LV_PALETTE_NONE;
+        case 1:
+            return LV_PALETTE_RED;
+        case 2:
+            return LV_PALETTE_PINK;
+        case 3:
+            return LV_PALETTE_PURPLE;
+        case 4:
+            return LV_PALETTE_LIGHT_BLUE;
+        case 5:
+            return LV_PALETTE_LIGHT_GREEN;
+        case 6:
+            return LV_PALETTE_ORANGE;
+        case 7:
+            return LV_PALETTE_YELLOW;
+        default:
+            return LV_PALETTE_NONE;
+    }
+}
+
+static uint8_t settingIndexForPalette(lv_palette_t palette) {
+    switch (palette) {
+        case LV_PALETTE_NONE:
+            return 0;
+        case LV_PALETTE_RED:
+            return 1;
+        case LV_PALETTE_PINK:
+            return 2;
+        case LV_PALETTE_PURPLE:
+            return 3;
+        case LV_PALETTE_LIGHT_BLUE:
+            return 4;
+        case LV_PALETTE_LIGHT_GREEN:
+            return 5;
+        case LV_PALETTE_ORANGE:
+            return 6;
+        case LV_PALETTE_YELLOW:
+            return 7;
+        default:
+            return 0;
+    }
+}   
+
+static void handleNoteColorSelected(lv_event_t *e) {
+    ESP_LOGI(TAG, "Note Color Selection changed");
     UserSettings *settings;
     if (!lvgl_port_lock(0)) {
         return;
     }
-    settings = (UserSettings *)lv_obj_get_user_data((lv_obj_t *)lv_event_get_target(e));
-    lvgl_port_unlock();
+    lv_obj_t * cont = (lv_obj_t *)lv_event_get_current_target(e);
+    settings = (UserSettings *)lv_obj_get_user_data(cont);
+
+    int32_t radioIndex = ((int32_t)settings->currentSettingIndex);
+    if (radioIndex < 0) {
+        radioIndex = 0;
+    }
+
+    lv_obj_t * act_cb = (lv_obj_t *)lv_event_get_target(e);
+    lv_obj_t * old_cb = (lv_obj_t *)lv_obj_get_child(cont, radioIndex);
+
+    // Do nothing if the container was clicked
+    if(act_cb == cont) return;
+
+    lv_obj_remove_state(old_cb, LV_STATE_CHECKED);   /*Uncheck the previous radio button*/
+    lv_obj_add_state(act_cb, LV_STATE_CHECKED);     /*Uncheck the current radio button*/
+
+    int32_t newIndex = lv_obj_get_index(act_cb);
+    lv_palette_t palette = paletteForSettingIndex(newIndex);
     settings->noteNamePalette = palette;
-    settings->saveSettings();
-    settings->removeCurrentMenu();
-}
 
-static void handleNoteColorWhiteSelected(lv_event_t *e) {
-    handleNoteColorSelected(e, LV_PALETTE_NONE);
-}
-
-static void handleNoteColorRedSelected(lv_event_t *e) {
-    handleNoteColorSelected(e, LV_PALETTE_RED);
-}
-
-static void handleNoteColorPinkSelected(lv_event_t *e) {
-    handleNoteColorSelected(e, LV_PALETTE_PINK);
-}
-
-static void handleNoteColorPurpleSelected(lv_event_t *e) {
-    handleNoteColorSelected(e, LV_PALETTE_PURPLE);
-}
-
-static void handleNoteColorBlueSelected(lv_event_t *e) {
-    handleNoteColorSelected(e, LV_PALETTE_LIGHT_BLUE);
-}
-
-static void handleNoteColorGreenSelected(lv_event_t *e) {
-    handleNoteColorSelected(e, LV_PALETTE_LIGHT_GREEN);
-}
-
-static void handleNoteColorOrangeSelected(lv_event_t *e) {
-    handleNoteColorSelected(e, LV_PALETTE_ORANGE);
-}
-
-static void handleNoteColorYellowSelected(lv_event_t *e) {
-    handleNoteColorSelected(e, LV_PALETTE_YELLOW);
+    lvgl_port_unlock();
 }
 
 static void handleInitialScreenButtonClicked(lv_event_t *e) {
@@ -1401,10 +1437,12 @@ void UserSettings::footswitchPressed(FootswitchPress press) {
     case footswitchLongPress:
         ESP_LOGI(TAG, "Settings: Long press");
         if (screenStack.size() > 2) {
+            ESP_LOGI(TAG, "0");
             saveSettings();
             removeCurrentMenu();
         } else {
-            saveSettings();
+            ESP_LOGI(TAG, "1");
+            // saveSettings();
             tunerController->setState(tunerStateTuning);
         }
         break;
