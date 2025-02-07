@@ -93,7 +93,7 @@ public:
     uint8_t             inTuneCentsWidth        = DEFAULT_IN_TUNE_CENTS_WIDTH;
     lv_palette_t        noteNamePalette         = DEFAULT_NOTE_NAME_PALETTE;
     TunerOrientation    displayOrientation      = DEFAULT_DISPLAY_ORIENTATION;
-    float               displayBrightness       = DEFAULT_DISPLAY_BRIGHTNESS;
+    uint8_t             displayBrightness       = DEFAULT_DISPLAY_BRIGHTNESS;
 
     float               expSmoothing            = DEFAULT_EXP_SMOOTHING;
     float               oneEUBeta               = DEFAULT_ONE_EU_BETA;
@@ -122,7 +122,7 @@ public:
      * @brief Get the user setting for display orientation.
      */
     lv_display_rotation_t getDisplayOrientation();
-    void setDisplayBrightness(float newBrightness);
+    void setDisplayBrightness(uint8_t newBrightness);
 
     /**
      * @brief Gives UserSettings a handle to the main display and the main screen.
@@ -145,7 +145,7 @@ public:
     /// @param itemStrings The items to show in the radio list.
     /// @param numOfItems Number of items in the `itemStrings` array.
     /// @param radioCallback A callback function that will be called when a radio item is selected.
-    /// @param radioValue Pointer to the user setting (1-based index).
+    /// @param radioValue Pointer to the user setting.
     /// @param valueOffset The offset to add to the radio value when saving it to the user settings.
     void createRadioList(const char *title, const char *itemStrings[], int numOfItems, lv_event_cb_t radioCallback, uint8_t *radioValue, int valueOffset);
     void createRoller(const char *title, const char *itemsString, lv_event_cb_t rollerCallback, uint8_t *rollerValue);

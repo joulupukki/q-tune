@@ -44,7 +44,7 @@
 #define DEFAULT_NOTE_DEBOUNCE_INTERVAL  ((float) 115.0)
 #define DEFAULT_USE_1EU_FILTER_FIRST    (true)
 // #define DEFAULT_MOVING_AVG_WINDOW       ((float) 100)
-#define DEFAULT_DISPLAY_BRIGHTNESS      ((float) 0.75)
+#define DEFAULT_DISPLAY_BRIGHTNESS      ((uint8_t) 7) // equates to 80% brightness because we're storing the value as a 0-based integer (0 - 10%, 1 - 20%, etc.)
 
 //
 // Pitch Detector Related

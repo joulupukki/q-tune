@@ -68,7 +68,7 @@ extern size_t num_of_available_guis;
 #define SETTING_KEY_NOTE_DEBOUNCE_INTERVAL  "note_debounce"
 #define SETTING_KEY_USE_1EU_FILTER_FIRST    "oneEUFilter1st"
 // #define SETTING_KEY_MOVING_AVG_WINDOW_SIZE  "movingAvgWindow"
-#define SETTING_KEY_DISPLAY_BRIGHTNESS      "disp_brightness"
+#define SETTING_KEY_DISPLAY_BRIGHTNESS      "dsp_brightness"
 
 /*
 
@@ -111,7 +111,7 @@ static void handleInTuneThresholdRadio(lv_event_t *e);
 
 static void handleDisplayButtonClicked(lv_event_t *e);
 static void handleBrightnessButtonClicked(lv_event_t *e);
-static void handleBrightnessSlider(lv_event_t *e);
+static void handleBrightnessSelected(lv_event_t *e);
 
 static void handleNoteColorButtonClicked(lv_event_t *e);
 static void handleNoteColorSelected(lv_event_t *e);
@@ -226,7 +226,7 @@ void UserSettings::loadSettings() {
     // }
 
     if (nvs_get_u8(nvsHandle, SETTING_KEY_DISPLAY_BRIGHTNESS, &value) == ESP_OK) {
-        displayBrightness = ((float)value) * 0.01;
+        displayBrightness = value;
     } else {
         displayBrightness = DEFAULT_DISPLAY_BRIGHTNESS;
     }
@@ -321,7 +321,7 @@ void UserSettings::saveSettings() {
     // value32 = (uint32_t)movingAvgWindow;
     // nvs_set_u32(nvsHandle, SETTING_KEY_MOVING_AVG_WINDOW_SIZE, value32);
 
-    value = (uint8_t)(displayBrightness * 100);
+    value = displayBrightness;
     nvs_set_u8(nvsHandle, SETTING_KEY_DISPLAY_BRIGHTNESS, value);
 
     nvs_commit(nvsHandle);
@@ -781,7 +781,6 @@ void UserSettings::createSpinbox(const char *title, uint32_t minRange, uint32_t 
 }
 
 void UserSettings::exitSettings() {
-    lv_obj_t *mainScreen = screenStack.front();
     settingsWillExitCallback();
 
     // Remove all but the first item out of the screenStack.
@@ -960,40 +959,6 @@ static void handleInTuneThresholdRadio(lv_event_t *e) {
     lvgl_port_unlock();
 }
 
-static void handleInTuneThresholdButtonValueClicked(lv_event_t *e) {
-    if (!lvgl_port_lock(0)) {
-        return;
-    }
-    ESP_LOGI(TAG, "In Tune Threshold value clicked");
-    lv_obj_t *btn = (lv_obj_t *)lv_event_get_target(e);
-    lv_obj_t *label = lv_obj_get_child(btn, 0);
-    if (label == NULL) {
-        ESP_LOGI(TAG, "Label is null");
-        lvgl_port_unlock();
-        return;
-    }
-    UserSettings *settings = (UserSettings *)lv_obj_get_user_data(btn);
-    char *text = lv_label_get_text(label);
-    if (strcmp(text, "1") == 0) {
-        settings->inTuneCentsWidth = 1;
-    } else if (strcmp(text, "2") == 0) {
-        settings->inTuneCentsWidth = 2;
-    } else if (strcmp(text, "3") == 0) {
-        settings->inTuneCentsWidth = 3;
-    } else if (strcmp(text, "4") == 0) {
-        settings->inTuneCentsWidth = 4;
-    } else if (strcmp(text, "5") == 0) {
-        settings->inTuneCentsWidth = 5;
-    } else if (strcmp(text, "6") == 0) {
-        settings->inTuneCentsWidth = 6;
-    } else if (strcmp(text, "7") == 0) {
-        settings->inTuneCentsWidth = 7;
-    } else if (strcmp(text, "8") == 0) {
-        settings->inTuneCentsWidth = 8;
-    }
-    lvgl_port_unlock();
-}
-
 static void handleDisplayButtonClicked(lv_event_t *e) {
     ESP_LOGI(TAG, "Display button clicked");
     UserSettings *settings;
@@ -1018,30 +983,61 @@ static void handleDisplayButtonClicked(lv_event_t *e) {
 }
 
 static void handleBrightnessButtonClicked(lv_event_t *e) {
-    ESP_LOGI(TAG, "Brightness slider changed");
+    ESP_LOGI(TAG, "Brightness button clicked");
     UserSettings *settings;
     if (!lvgl_port_lock(0)) {
         return;
     }
     settings = (UserSettings *)lv_obj_get_user_data((lv_obj_t *)lv_event_get_target(e));
     lvgl_port_unlock();
-    settings->createSlider(MENU_BTN_BRIGHTNESS, 10, 100, handleBrightnessSlider, &settings->displayBrightness);
+    const char *buttonNames[] = {
+        "10%",
+        "20%",
+        "30%",
+        "40%",
+        "50%",
+        "60%",
+        "70%",
+        "80%",
+        "90%",
+        "100%",
+    };
+    settings->createRadioList((const char *)MENU_BTN_BRIGHTNESS, 
+                               buttonNames,
+                               sizeof(buttonNames) / sizeof(buttonNames[0]),
+                               handleBrightnessSelected,
+                               &settings->displayBrightness,
+                               0); // a 0-based setting
+
 }
 
-static void handleBrightnessSlider(lv_event_t *e) {
+static void handleBrightnessSelected(lv_event_t *e) {
     if (!lvgl_port_lock(0)) {
         return;
     }
-    lv_obj_t * slider = (lv_obj_t *)lv_event_get_target(e);
-    float *sliderValue = (float *)lv_event_get_user_data(e);
-    UserSettings *settings = (UserSettings *)lv_obj_get_user_data(slider);
-
-    uint8_t newValue = (uint8_t)lv_slider_get_value(slider);
-
-    if (lcd_display_brightness_set(newValue) == ESP_OK) {
-        *sliderValue = (float)newValue * 0.01;
-        ESP_LOGI(TAG, "New slider value: %.2f", *sliderValue);
+    uint8_t *brightnessSetting = (uint8_t *)lv_event_get_user_data(e);
+    int32_t radioIndex = ((int32_t)*brightnessSetting);
+    if (radioIndex < 0) {
+        radioIndex = 0;
     }
+
+    lv_obj_t * cont = (lv_obj_t *)lv_event_get_current_target(e);
+    lv_obj_t * act_cb = (lv_obj_t *)lv_event_get_target(e);
+    lv_obj_t * old_cb = (lv_obj_t *)lv_obj_get_child(cont, radioIndex);
+
+    // Do nothing if the container was clicked
+    if(act_cb == cont) return;
+
+    lv_obj_remove_state(old_cb, LV_STATE_CHECKED);   /*Uncheck the previous radio button*/
+    lv_obj_add_state(act_cb, LV_STATE_CHECKED);     /*Uncheck the current radio button*/
+
+    int32_t newIndex = lv_obj_get_index(act_cb);
+    float brightnessValue = (float)newIndex * 10 + 10;
+    if (lcd_display_brightness_set(brightnessValue) == ESP_OK) {
+        *brightnessSetting = (uint8_t)newIndex;
+        ESP_LOGI(TAG, "New display brightness setting is %ld (%f%%)", newIndex, brightnessValue);
+    }
+
     lvgl_port_unlock();
 }
 
