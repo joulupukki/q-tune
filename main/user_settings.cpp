@@ -599,20 +599,20 @@ void UserSettings::createRadioList(const char *title,
                                    const char *itemStrings[],
                                    int numOfItems,
                                    lv_event_cb_t radioCallback,
-                                   uint8_t *radioValue) {
+                                   uint8_t *radioValue,
+                                   int valueOffset) {
     if (!lvgl_port_lock(0)) {
         return;
     }
     lv_obj_t *scr = lv_obj_create(NULL);
 
-    // The settings value is 1-based, but the radio buttons are 0-based so make
-    // adjustments here to make sure the correct button is selected.
+    // Adjust the settings value to be 0-based if needed.
     uint8_t zeroBasedValue = *radioValue;
     if (zeroBasedValue > numOfItems) {
         zeroBasedValue = 0;
     }
     if (zeroBasedValue > 0) {
-        zeroBasedValue--;
+        zeroBasedValue -= valueOffset;
     }
 
     lv_group_t *group = lv_group_create();
@@ -635,7 +635,6 @@ void UserSettings::createRadioList(const char *title,
     lv_obj_set_style_bg_color(cont1, lv_color_black(), 0); // Optional background color
     lv_obj_add_event_cb(cont1, radioCallback, LV_EVENT_CLICKED, (void *)radioValue);
     lv_obj_align(cont1, LV_ALIGN_CENTER, 0, 0);
-    lv_obj_set_user_data(cont1, this); // Strange way of passing UserSettings to the callback handler, but this is how we're doing it
 
     // lv_obj_t *scrollToItem = NULL;
     for (int i = 0; i < numOfItems; i++) {
@@ -866,38 +865,45 @@ static void handleTunerModeButtonClicked(lv_event_t *e) {
     lvgl_port_unlock();
 
     const char **buttonNames = (const char **)malloc(sizeof(const char *) * num_of_available_guis);
-    lv_event_cb_t *callbackFunctions = (lv_event_cb_t *)malloc(sizeof(lv_event_cb_t) * num_of_available_guis);
 
     for (int i = 0; i < num_of_available_guis; i++) {
         buttonNames[i] = available_guis[i].get_name();
-        callbackFunctions[i] = handleTunerModeSelected;
     }
 
-    settings->createMenu(buttonNames, NULL, NULL, callbackFunctions, num_of_available_guis);
+    settings->createRadioList((const char *)MENU_BTN_TUNER_MODE, 
+                               buttonNames,
+                               num_of_available_guis,
+                               handleTunerModeSelected,
+                               &settings->tunerGUIIndex,
+                               0); // This setting is 0-based
+
     free(buttonNames);
-    free(callbackFunctions);
 }
 
 static void handleTunerModeSelected(lv_event_t *e) {
     ESP_LOGI(TAG, "Tuner mode clicked");
-    UserSettings *settings;
     if (!lvgl_port_lock(0)) {
         return;
     }
-    settings = (UserSettings *)lv_obj_get_user_data((lv_obj_t *)lv_event_get_target(e));
+    uint8_t *tunerSetting = (uint8_t *)lv_event_get_user_data(e);
 
-    // Determine which mode was selected by the name of the button selected
-    lv_obj_t *btn = (lv_obj_t *)lv_event_get_target(e);
-    lv_obj_t *label = lv_obj_get_child(btn, 0);
-    char *button_text = lv_label_get_text(label);
-
+    lv_obj_t * cont = (lv_obj_t *)lv_event_get_current_target(e);
+    lv_obj_t * act_cb = (lv_obj_t *)lv_event_get_target(e);
+    char *button_text = lv_label_get_text(act_cb);
+    lv_obj_t * old_cb = (lv_obj_t *)lv_obj_get_child(cont, *tunerSetting);
     lvgl_port_unlock();
+
+    // Do nothing if the container was clicked
+    if(act_cb == cont) return;
+
+    lv_obj_remove_state(old_cb, LV_STATE_CHECKED);   /*Uncheck the previous radio button*/
+    lv_obj_add_state(act_cb, LV_STATE_CHECKED);     /*Uncheck the current radio button*/
 
     for (int i = 0; i < num_of_available_guis; i++) {
         if (strcmp(available_guis[i].get_name(), button_text) == 0) {
             // This is the one!
-            settings->tunerGUIIndex = i;
-            settings->removeCurrentMenu(); // Don't make the user click back
+            ESP_LOGI(TAG, "New Tuner GUI setting: %d", i);
+            *tunerSetting = i;
             return;
         }
     }
@@ -923,7 +929,8 @@ static void handleInTuneThresholdButtonClicked(lv_event_t *e) {
                                buttonNames,
                                sizeof(buttonNames) / sizeof(buttonNames[0]),
                                handleInTuneThresholdRadio,
-                               &settings->inTuneCentsWidth);
+                               &settings->inTuneCentsWidth,
+                               1); // this setting is 1-based instead of 0-based
 }
 
 static void handleInTuneThresholdRadio(lv_event_t *e) {
@@ -938,11 +945,10 @@ static void handleInTuneThresholdRadio(lv_event_t *e) {
     }
 
     lv_obj_t * cont = (lv_obj_t *)lv_event_get_current_target(e);
-    UserSettings *settings = (UserSettings *)lv_obj_get_user_data(cont);
     lv_obj_t * act_cb = (lv_obj_t *)lv_event_get_target(e);
     lv_obj_t * old_cb = (lv_obj_t *)lv_obj_get_child(cont, radioIndex);
 
-    /*Do nothing if the container was clicked*/
+    // Do nothing if the container was clicked
     if(act_cb == cont) return;
 
     lv_obj_remove_state(old_cb, LV_STATE_CHECKED);   /*Uncheck the previous radio button*/
@@ -951,7 +957,6 @@ static void handleInTuneThresholdRadio(lv_event_t *e) {
     *thresholdSetting = lv_obj_get_index(act_cb) + 1; // Adjust before storing into settings for 1-based values
     ESP_LOGI(TAG, "New In Tune Threshold setting: %d", *thresholdSetting);
 
-    settings->saveSettings();
     lvgl_port_unlock();
 }
 
@@ -1400,8 +1405,10 @@ void UserSettings::footswitchPressed(FootswitchPress press) {
     case footswitchLongPress:
         ESP_LOGI(TAG, "Settings: Long press");
         if (screenStack.size() > 2) {
+            saveSettings();
             removeCurrentMenu();
         } else {
+            saveSettings();
             tunerController->setState(tunerStateTuning);
         }
         break;

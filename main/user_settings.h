@@ -146,7 +146,8 @@ public:
     /// @param numOfItems Number of items in the `itemStrings` array.
     /// @param radioCallback A callback function that will be called when a radio item is selected.
     /// @param radioValue Pointer to the user setting (1-based index).
-    void createRadioList(const char *title, const char *itemStrings[], int numOfItems, lv_event_cb_t radioCallback, uint8_t *radioValue);
+    /// @param valueOffset The offset to add to the radio value when saving it to the user settings.
+    void createRadioList(const char *title, const char *itemStrings[], int numOfItems, lv_event_cb_t radioCallback, uint8_t *radioValue, int valueOffset);
     void createRoller(const char *title, const char *itemsString, lv_event_cb_t rollerCallback, uint8_t *rollerValue);
     void createSpinbox(const char *title, uint32_t minRange, uint32_t maxRange, uint32_t digitCount, uint32_t separatorPosition, float *spinboxValue, float conversionFactor);
 
