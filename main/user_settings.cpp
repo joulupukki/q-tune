@@ -122,10 +122,7 @@ static void handleInitialScreenButtonClicked(lv_event_t *e);
 static void handleInitialStateSelected(lv_event_t *e);
 
 static void handleRotationButtonClicked(lv_event_t *e);
-static void handleRotationNormalClicked(lv_event_t *e);
-static void handleRotationLeftClicked(lv_event_t *e);
-static void handleRotationRightClicked(lv_event_t *e);
-static void handleRotationUpsideDnClicked(lv_event_t *e);
+static void handleRotationSelected(lv_event_t *e);
 
 static void handleDebugButtonClicked(lv_event_t *e);
 static void handleExpSmoothingButtonClicked(lv_event_t *e);
@@ -157,36 +154,45 @@ void UserSettings::loadSettings() {
     } else {
         initialState = DEFAULT_INITIAL_STATE;
     }
+    if (initialState == tunerStateBooting) {
+        initialState = DEFAULT_INITIAL_STATE;
+    }
+    ESP_LOGI(TAG, "Initial State: %d", initialState);
 
     if (nvs_get_u8(nvsHandle, SETTING_STANDBY_GUI_INDEX, &value) == ESP_OK) {
         standbyGUIIndex = value;
     } else {
         standbyGUIIndex = DEFAULT_STANDBY_GUI_INDEX;
     }
+    ESP_LOGI(TAG, "Standby GUI Index: %d", standbyGUIIndex);
 
     if (nvs_get_u8(nvsHandle, SETTING_TUNER_GUI_INDEX, &value) == ESP_OK) {
         tunerGUIIndex = value;
     } else {
         tunerGUIIndex = DEFAULT_TUNER_GUI_INDEX;
     }
+    ESP_LOGI(TAG, "Tuner GUI Index: %d", tunerGUIIndex);
 
     if (nvs_get_u8(nvsHandle, SETTING_KEY_IN_TUNE_WIDTH, &value) == ESP_OK) {
         inTuneCentsWidth = value;
     } else {
         inTuneCentsWidth = DEFAULT_IN_TUNE_CENTS_WIDTH;
     }
+    ESP_LOGI(TAG, "In Tune Width: %d", inTuneCentsWidth);
 
     if (nvs_get_u8(nvsHandle, SETTING_KEY_NOTE_NAME_PALETTE, &value) == ESP_OK) {
         noteNamePalette = (lv_palette_t)value;
     } else {
         noteNamePalette = DEFAULT_NOTE_NAME_PALETTE;
     }
+    ESP_LOGI(TAG, "Note Name Palette: %d", noteNamePalette);
 
     if (nvs_get_u8(nvsHandle, SETTING_KEY_DISPLAY_ORIENTATION, &value) == ESP_OK) {
         displayOrientation = (TunerOrientation)value;
     } else {
         displayOrientation = DEFAULT_DISPLAY_ORIENTATION;
     }
+    ESP_LOGI(TAG, "Display Orientation: %d", displayOrientation);
 
     if (nvs_get_u8(nvsHandle, SETTING_KEY_EXP_SMOOTHING, &value) == ESP_OK) {
         expSmoothing = ((float)value) * 0.01;
@@ -223,6 +229,7 @@ void UserSettings::loadSettings() {
     } else {
         displayBrightness = DEFAULT_DISPLAY_BRIGHTNESS;
     }
+    ESP_LOGI(TAG, "Display Brightness: %d", displayBrightness);
 }
 
 void UserSettings::setIsShowingSettings(bool isShowing) {
@@ -283,21 +290,27 @@ void UserSettings::saveSettings() {
     uint32_t value32;
 
     value = initialState;
+    ESP_LOGI(TAG, "Initial State: %d", value);
     nvs_set_u8(nvsHandle, SETTINGS_INITIAL_SCREEN, value);
 
     value = standbyGUIIndex;
+    ESP_LOGI(TAG, "Standby GUI Index: %d", value);
     nvs_set_u8(nvsHandle, SETTING_STANDBY_GUI_INDEX, value);
 
     value = tunerGUIIndex;
+    ESP_LOGI(TAG, "Tuner GUI Index: %d", value);
     nvs_set_u8(nvsHandle, SETTING_TUNER_GUI_INDEX, value);
 
     value = inTuneCentsWidth;
+    ESP_LOGI(TAG, "In Tune Width: %d", value);
     nvs_set_u8(nvsHandle, SETTING_KEY_IN_TUNE_WIDTH, value);
 
     value = (uint8_t)noteNamePalette;
+    ESP_LOGI(TAG, "Note Name Palette: %d", value);
     nvs_set_u8(nvsHandle, SETTING_KEY_NOTE_NAME_PALETTE, value);
 
     value = (uint8_t)displayOrientation;
+    ESP_LOGI(TAG, "Display Orientation: %d", value);
     nvs_set_u8(nvsHandle, SETTING_KEY_DISPLAY_ORIENTATION, value);
 
     value = (uint8_t)(expSmoothing * 100);
@@ -316,6 +329,7 @@ void UserSettings::saveSettings() {
     // nvs_set_u32(nvsHandle, SETTING_KEY_MOVING_AVG_WINDOW_SIZE, value32);
 
     value = displayBrightness;
+    ESP_LOGI(TAG, "Display Brightness: %d", value);
     nvs_set_u8(nvsHandle, SETTING_KEY_DISPLAY_BRIGHTNESS, value);
 
     nvs_commit(nvsHandle);
@@ -810,15 +824,19 @@ void UserSettings::rotateScreenTo(TunerOrientation newRotation) {
     switch (newRotation)
     {
     case orientationNormal:
+    ESP_LOGI(TAG, "Rotating to normal");
         new_rotation = LV_DISPLAY_ROTATION_180;
         break;
     case orientationLeft:
+    ESP_LOGI(TAG, "Rotating to left");
         new_rotation = LV_DISPLAY_ROTATION_90;
         break;
     case orientationRight:
+    ESP_LOGI(TAG, "Rotating to right");
         new_rotation = LV_DISPLAY_ROTATION_270;
         break;
     default:
+    ESP_LOGI(TAG, "Rotating to upside down");
         new_rotation = LV_DISPLAY_ROTATION_0;
         break;
     }
@@ -1180,7 +1198,7 @@ static void handleInitialScreenButtonClicked(lv_event_t *e) {
                                NULL,
                                handleInitialStateSelected,
                                (uint8_t *)&settings->initialState,
-                               1); // a 0-based setting
+                               1); // a 1-based setting
 }
 
 static void handleInitialStateSelected(lv_event_t *e) {
@@ -1225,57 +1243,46 @@ static void handleRotationButtonClicked(lv_event_t *e) {
         MENU_BTN_ROTATION_RIGHT,
         MENU_BTN_ROTATION_UPSIDE_DN,
     };
-    lv_event_cb_t callbackFunctions[] = {
-        handleRotationNormalClicked,
-        handleRotationLeftClicked,
-        handleRotationRightClicked,
-        handleRotationUpsideDnClicked,
-    };
-    settings->createMenu(buttonNames, NULL, NULL, callbackFunctions, 4);
+    
+    settings->createRadioList((const char *)MENU_BTN_ROTATION, 
+                               buttonNames,
+                               sizeof(buttonNames) / sizeof(buttonNames[0]),
+                               NULL,
+                               handleRotationSelected,
+                               (uint8_t *)&settings->initialState,
+                               0); // a 0-based setting
 }
 
-static void handleRotationNormalClicked(lv_event_t *e) {
-    ESP_LOGI(TAG, "Rotation Normal clicked");
+static void handleRotationSelected(lv_event_t *e) {
+    ESP_LOGI(TAG, "Rotation option selected");
     UserSettings *settings;
     if (!lvgl_port_lock(0)) {
         return;
     }
-    settings = (UserSettings *)lv_obj_get_user_data((lv_obj_t *)lv_event_get_target(e));
-    lvgl_port_unlock();
-    settings->rotateScreenTo(orientationNormal);
-}
 
-static void handleRotationLeftClicked(lv_event_t *e) {
-    ESP_LOGI(TAG, "Rotation Left clicked");
-    UserSettings *settings;
-    if (!lvgl_port_lock(0)) {
-        return;
+    uint8_t *rotationSetting = (uint8_t *)lv_event_get_user_data(e);
+    int32_t radioIndex = ((int32_t)*rotationSetting);
+    if (radioIndex < 0) {
+        radioIndex = 0;
     }
-    settings = (UserSettings *)lv_obj_get_user_data((lv_obj_t *)lv_event_get_target(e));
-    lvgl_port_unlock();
-    settings->rotateScreenTo(orientationLeft);
-}
 
-static void handleRotationRightClicked(lv_event_t *e) {
-    ESP_LOGI(TAG, "Rotation Right clicked");
-    UserSettings *settings;
-    if (!lvgl_port_lock(0)) {
-        return;
-    }
-    settings = (UserSettings *)lv_obj_get_user_data((lv_obj_t *)lv_event_get_target(e));
-    lvgl_port_unlock();
-    settings->rotateScreenTo(orientationRight);
-}
+    lv_obj_t * cont = (lv_obj_t *)lv_event_get_current_target(e);
+    settings = (UserSettings *)lv_obj_get_user_data(cont);
+    lv_obj_t * act_cb = (lv_obj_t *)lv_event_get_target(e);
+    lv_obj_t * old_cb = (lv_obj_t *)lv_obj_get_child(cont, radioIndex);
 
-static void handleRotationUpsideDnClicked(lv_event_t *e) {
-    ESP_LOGI(TAG, "Rotation Upside Down clicked");
-    UserSettings *settings;
-    if (!lvgl_port_lock(0)) {
-        return;
-    }
-    settings = (UserSettings *)lv_obj_get_user_data((lv_obj_t *)lv_event_get_target(e));
+    // Do nothing if the container was clicked
+    if(act_cb == cont) return;
+
+    lv_obj_remove_state(old_cb, LV_STATE_CHECKED);   /*Uncheck the previous radio button*/
+    lv_obj_add_state(act_cb, LV_STATE_CHECKED);     /*Uncheck the current radio button*/
+
     lvgl_port_unlock();
-    settings->rotateScreenTo(orientationUpsideDown);
+
+    *rotationSetting = lv_obj_get_index(act_cb);
+
+    // If the rotation is successful, it's saved in the settings
+    settings->rotateScreenTo((TunerOrientation)*rotationSetting);
 }
 
 static void handleDebugButtonClicked(lv_event_t *e) {

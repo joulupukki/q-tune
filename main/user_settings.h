@@ -40,7 +40,7 @@ extern "C" { // because these files are C and not C++
 #include "defines.h"
 
 enum TunerOrientation: uint8_t {
-    orientationNormal,
+    orientationNormal = 0,
     orientationLeft,
     orientationRight,
     orientationUpsideDown,
