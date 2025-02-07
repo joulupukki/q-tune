@@ -119,8 +119,7 @@ static uint8_t settingIndexForPalette(lv_palette_t palette);
 static void handleNoteColorSelected(lv_event_t *e);
 
 static void handleInitialScreenButtonClicked(lv_event_t *e);
-static void handleInitialStandbyButtonClicked(lv_event_t *e);
-static void handleInitialTuningButtonClicked(lv_event_t *e);
+static void handleInitialStateSelected(lv_event_t *e);
 
 static void handleRotationButtonClicked(lv_event_t *e);
 static void handleRotationNormalClicked(lv_event_t *e);
@@ -1174,35 +1173,42 @@ static void handleInitialScreenButtonClicked(lv_event_t *e) {
         MENU_BTN_STANDBY,
         MENU_BTN_TUNING,
     };
-    lv_event_cb_t callbackFunctions[] = {
-        handleInitialStandbyButtonClicked,
-        handleInitialTuningButtonClicked,
-    };
-    settings->createMenu(buttonNames, NULL, NULL, callbackFunctions, 2);
+    settings->currentSettingIndex = settingIndexForPalette(settings->noteNamePalette);
+    settings->createRadioList((const char *)MENU_BTN_INITIAL_SCREEN, 
+                               buttonNames,
+                               sizeof(buttonNames) / sizeof(buttonNames[0]),
+                               NULL,
+                               handleInitialStateSelected,
+                               (uint8_t *)&settings->initialState,
+                               1); // a 0-based setting
 }
 
-static void handleInitialStandbyButtonClicked(lv_event_t *e) {
-    ESP_LOGI(TAG, "Set initial screen as standby button clicked");
-    UserSettings *settings;
+static void handleInitialStateSelected(lv_event_t *e) {
+    ESP_LOGI(TAG, "Set initial screen option selected");
     if (!lvgl_port_lock(0)) {
         return;
     }
-    settings = (UserSettings *)lv_obj_get_user_data((lv_obj_t *)lv_event_get_target(e));
-    lvgl_port_unlock();
-    settings->initialState = tunerStateStandby;
-    settings->removeCurrentMenu(); // Automatically press the back button
-}
 
-static void handleInitialTuningButtonClicked(lv_event_t *e) {
-    ESP_LOGI(TAG, "Set initial screen as tuning button clicked");
-    UserSettings *settings;
-    if (!lvgl_port_lock(0)) {
-        return;
+    uint8_t *initialStateSetting = (uint8_t *)lv_event_get_user_data(e); // this is 1-based
+    int32_t radioIndex = ((int32_t)*initialStateSetting) - 1;
+    if (radioIndex < 0) {
+        radioIndex = 0;
     }
-    settings = (UserSettings *)lv_obj_get_user_data((lv_obj_t *)lv_event_get_target(e));
+
+    lv_obj_t * cont = (lv_obj_t *)lv_event_get_current_target(e);
+    lv_obj_t * act_cb = (lv_obj_t *)lv_event_get_target(e);
+    lv_obj_t * old_cb = (lv_obj_t *)lv_obj_get_child(cont, radioIndex);
+
+    // Do nothing if the container was clicked
+    if(act_cb == cont) return;
+
+    lv_obj_remove_state(old_cb, LV_STATE_CHECKED);   /*Uncheck the previous radio button*/
+    lv_obj_add_state(act_cb, LV_STATE_CHECKED);     /*Uncheck the current radio button*/
+
+    *initialStateSetting = lv_obj_get_index(act_cb) + 1; // Adjust before storing into settings for 1-based values
+    ESP_LOGI(TAG, "New initial screen setting: %d", *initialStateSetting);
+
     lvgl_port_unlock();
-    settings->initialState = tunerStateTuning;
-    settings->removeCurrentMenu(); // Automatically press the back button
 }
 
 static void handleRotationButtonClicked(lv_event_t *e) {
