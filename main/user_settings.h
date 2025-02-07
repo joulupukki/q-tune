@@ -67,7 +67,6 @@ class UserSettings {
     nvs_handle_t    nvsHandle;
     bool isShowingMenu = false;
 
-    lv_style_t focusedButtonStyle;
     lv_style_t radioStyle;
     lv_style_t radioCheckStyle;
 
@@ -104,6 +103,8 @@ public:
     /// @brief This is used when dealing with a setting that doesn't use a
     /// uint8_t for its storage when dealing with a radio list.
     uint8_t currentSettingIndex;
+
+    lv_style_t focusedButtonStyle;
 
     /**
      * @brief Create the settings object and sets its parameters

@@ -258,10 +258,12 @@ void UserSettings::pressFocusedButton() {
         ESP_LOGI(TAG, "pressFocusedButton - btn is NULL");
         return;
     }
-    const lv_obj_class_t *btnClass = lv_obj_get_class(btn);
-    if (btnClass == &lv_button_class || btnClass == &lv_checkbox_class) {
+    // const lv_obj_class_t *btnClass = lv_obj_get_class(btn);
+    // if (btnClass == &lv_button_class || btnClass == &lv_checkbox_class) {
+    //     lv_obj_send_event(btn, LV_EVENT_CLICKED, NULL);
+    // } else {
         lv_obj_send_event(btn, LV_EVENT_CLICKED, NULL);
-    }
+    // }
 }
 
 //
@@ -1249,7 +1251,7 @@ static void handleRotationButtonClicked(lv_event_t *e) {
                                sizeof(buttonNames) / sizeof(buttonNames[0]),
                                NULL,
                                handleRotationSelected,
-                               (uint8_t *)&settings->initialState,
+                               (uint8_t *)&settings->displayOrientation,
                                0); // a 0-based setting
 }
 
@@ -1401,24 +1403,39 @@ static void handleFactoryResetButtonClicked(lv_event_t *e) {
         return;
     }
     settings = (UserSettings *)lv_obj_get_user_data((lv_obj_t *)lv_event_get_target(e));
+    
+    lv_group_t *group = lv_group_create();
+    lv_group_set_wrap(group, true);
+    lv_group_set_default(group);
 
     lv_obj_t * mbox = lv_msgbox_create(lv_scr_act());
     lv_obj_set_style_pad_all(mbox, 10, 0);           // Add padding for aesthetics
     lv_msgbox_add_title(mbox, "Factory Reset");
     lv_msgbox_add_text(mbox, "Reset to factory defaults?");
-    lv_obj_t *btn = lv_msgbox_add_footer_button(mbox, "Reset");
-    lv_obj_set_user_data(btn, mbox);
-    lv_obj_set_style_bg_color(btn, lv_palette_main(LV_PALETTE_RED), 0);
-    lv_obj_add_event_cb(btn, handleFactoryResetChickenOutConfirmed, LV_EVENT_CLICKED, settings);
-    btn = lv_msgbox_add_footer_button(mbox, "Cancel");
+    lv_obj_t *btn = lv_msgbox_add_footer_button(mbox, "Cancel");
+    lv_group_add_obj(group, btn);
+    lv_obj_add_style(btn, &settings->focusedButtonStyle, LV_STATE_FOCUSED);
     lv_obj_add_event_cb(btn, [](lv_event_t *e) {
         if (!lvgl_port_lock(0)) {
             return;
         }
         lv_obj_t *mbox = (lv_obj_t *)lv_event_get_user_data(e);
         lv_obj_del(mbox); // closes the mbox
+
+        // Restore the default group so the About menu can be navigated again
+        lv_group_t *group = find_group_in_parent(lv_scr_act());
+        if (group != NULL) {
+            lv_group_set_default(group);
+        }
+
         lvgl_port_unlock();
     }, LV_EVENT_CLICKED, mbox);
+    btn = lv_msgbox_add_footer_button(mbox, "Reset");
+    lv_group_add_obj(group, btn);
+    lv_obj_add_style(btn, &settings->focusedButtonStyle, LV_STATE_FOCUSED);
+    lv_obj_set_user_data(btn, mbox);
+    lv_obj_set_style_bg_color(btn, lv_palette_main(LV_PALETTE_RED), 0);
+    lv_obj_add_event_cb(btn, handleFactoryResetChickenOutConfirmed, LV_EVENT_CLICKED, settings);
 
     lv_obj_center(mbox);
 
