@@ -32,7 +32,6 @@
 static const char *TAG = "GPIO";
 
 extern TunerController *tunerController;
-extern UserSettings *userSettings;
 
 // Keep track of what the relay state is so the app doesn't have to keep making
 // calls to set it over and over (which chews up CPU).
@@ -43,23 +42,27 @@ int footswitch_press_count = 0;
 int64_t footswitch_start_time = 0;
 int64_t footswitch_last_press_time = 0;
 bool footswitch_long_press_triggered = false;
+esp_timer_handle_t single_press_timer;
 
 //
 // Local Function Declarations
 //
 void configure_gpio_pins();
-void handle_gpio_pins();
+void handle_button_press();
 void ensure_relay_state();
-void handle_normal_press();
-void handle_double_press();
-void handle_long_press();
+void handle_single_press(void *param);
+void handle_double_press(void *param);
+void handle_long_press(void *param);
+void single_press_timer_callback(void* arg);
+void start_single_press_timer();
+void cancel_single_press_timer();
 
 void gpio_task(void *pvParameter) {
     ESP_LOGI(TAG, "GPIO task started");
     configure_gpio_pins();
 
     while(1) {
-        handle_gpio_pins();
+        handle_button_press();
         ensure_relay_state();
 
         vTaskDelay(pdMS_TO_TICKS(50)); // Small delay for debouncing
@@ -99,10 +102,8 @@ void configure_gpio_pins() {
     current_relay_gpio_level = 0;
 }
 
-void handle_gpio_pins() {
-
+void handle_button_press() {
     // Detect press, double-press, and long press.
-
     int current_footswitch_state = gpio_get_level(FOOT_SWITCH_GPIO);
 
     if (current_footswitch_state == 0 && footswitch_last_state == 1) {
@@ -110,7 +111,7 @@ void handle_gpio_pins() {
         footswitch_start_time = esp_timer_get_time() / 1000; // Get time in ms
         int64_t now = footswitch_start_time;
 
-        if ((now - footswitch_last_press_time) <= DOUBLE_CLICK_THRESHOLD) {
+        if ((now - footswitch_last_press_time) <= DOUBLE_PRESS_TIME_MS) {
             footswitch_press_count++;
         } else {
             footswitch_press_count = 1;
@@ -124,9 +125,10 @@ void handle_gpio_pins() {
         // Button is being held down
         int64_t press_duration = (esp_timer_get_time() / 1000) - footswitch_start_time;
 
-        if (press_duration >= LONG_PRESS_THRESHOLD && !footswitch_long_press_triggered) {
-            handle_long_press();
+        if (press_duration >= LONG_PRESS_TIME_MS && !footswitch_long_press_triggered) {
+            lv_async_call(handle_long_press, NULL);
             footswitch_long_press_triggered = true; // Ensure long press is only triggered once
+            footswitch_press_count = 0; // Reset press count after a long press
             vTaskDelay(pdMS_TO_TICKS(200)); // Small delay for visual feedback
         }
     }
@@ -137,22 +139,24 @@ void handle_gpio_pins() {
             int64_t press_duration = (esp_timer_get_time() / 1000) - footswitch_start_time;
 
             if (footswitch_press_count == 2) {
-                handle_double_press();
+                cancel_single_press_timer(); // kill the timer if it's running
+                lv_async_call(handle_double_press, NULL);
+                footswitch_press_count = 0; // Reset press count after double press
                 vTaskDelay(pdMS_TO_TICKS(200)); // Small delay for visual feedback
-            } else if (press_duration < LONG_PRESS_THRESHOLD) {
-                handle_normal_press();
-                vTaskDelay(pdMS_TO_TICKS(200)); // Small delay for visual feedback
+            } else if (press_duration < LONG_PRESS_TIME_MS && footswitch_press_count == 1) {
+                if (tunerController->getState() == tunerStateSettings) {
+                    start_single_press_timer();
+                } else {
+                    // Fire a single press right away
+                    single_press_timer_callback(NULL);
+                }
+            } else {
+                footswitch_press_count = 0; // Reset press count if it ever hits this condition
             }
         }
     }
 
-    footswitch_last_state = current_footswitch_state;
-
-    // gpio_set_level(RELAY_GPIO, 1); // Turn on GPIO 22
-    // current_relay_gpio_level = 1;
-
-    // gpio_set_level(RELAY_GPIO, 0); // Turn off GPIO 22
-    // current_relay_gpio_level = 0;
+    footswitch_last_state = current_footswitch_state;    
 }
 
 /// The purpose of this function is to make sure the relay is in the correct
@@ -171,7 +175,8 @@ void ensure_relay_state() {
     }
 }
 
-void handle_normal_press() {
+// Called on the LVGL task thread (tuner_gui_task).
+void handle_single_press(void *param) {
     ESP_LOGI(TAG, "NORMAL PRESS detected");
 
     TunerState state = tunerController->getState();
@@ -194,22 +199,51 @@ void handle_normal_press() {
         // Go to standby mode
         tunerController->setState(tunerStateStandby);
         break;
+    case tunerStateSettings:
+        tunerController->footswitchPressed(footswitchSinglePress);
+        break;
     default:
         break;
     }
 }
 
-void handle_double_press() {
+// Called on the LVGL task thread (tuner_gui_task).
+void handle_double_press(void *param) {
     ESP_LOGI(TAG, "DOUBLE PRESS detected");
-
-    // If we decide to use this for something, we have to make it so that it
-    // reverses whatever the single press does. Take a look at Ditto+ and its
-    // double tap behavior and you'll see the same behavior.
+    tunerController->footswitchPressed(footswitchDoublePress);
 }
 
-void handle_long_press() {
+// Called on the LVGL task thread (tuner_gui_task).
+void handle_long_press(void *param) {
     ESP_LOGI(TAG, "LONG PRESS detected");
+    tunerController->footswitchPressed(footswitchLongPress);
+}
 
-    // What cool thing are we going to use this for? Maybe cycle through the
-    // different tuning modes?
+void single_press_timer_callback(void* arg) {
+    lv_async_call(handle_single_press, NULL);
+    footswitch_press_count = 0; // Reset press count after single press
+    vTaskDelay(pdMS_TO_TICKS(200)); // Small delay for visual feedback
+}
+
+void start_single_press_timer() {
+    if (single_press_timer != NULL) {
+        esp_timer_stop(single_press_timer);
+        esp_timer_delete(single_press_timer);
+    }
+
+    const esp_timer_create_args_t single_press_timer_args = {
+        .callback = &single_press_timer_callback,
+        .name = "single_press_timer"
+    };
+
+    esp_timer_create(&single_press_timer_args, &single_press_timer);
+    esp_timer_start_once(single_press_timer, DOUBLE_PRESS_TIME_MS * 1000); // Convert ms to us
+}
+
+void cancel_single_press_timer() {
+    if (single_press_timer != NULL) {
+        esp_timer_stop(single_press_timer);
+        esp_timer_delete(single_press_timer);
+        single_press_timer = NULL;
+    }
 }

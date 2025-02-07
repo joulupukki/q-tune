@@ -29,7 +29,7 @@ enum TunerState: uint8_t {
 };
 
 enum FootswitchPress: uint8_t {
-    footswitchNormalPress,
+    footswitchSinglePress,
     footswitchDoublePress,
     footswitchLongPress,
 };
@@ -42,6 +42,10 @@ typedef void (*tuner_state_will_change_cb_t)(TunerState old_state, TunerState ne
 /// @param new_state Indicates the state that the tuner changed to.
 typedef void (*tuner_state_did_change_cb_t)(TunerState old_state, TunerState new_state);
 
+/// @brief Called when the momentary foot switch is pressed.
+/// @param press Indicates the type of press.
+typedef void (*tuner_footswitch_pressed_cb_t)(FootswitchPress press);
+
 class TunerController {
 
     TunerState tunerState;
@@ -50,10 +54,11 @@ class TunerController {
 
     tuner_state_will_change_cb_t    stateWillChangeCallback;
     tuner_state_did_change_cb_t     stateDidChangeCallback;
+    tuner_footswitch_pressed_cb_t   footswitchPressedCallback;
 
 public:
 
-    TunerController(tuner_state_will_change_cb_t willChange, tuner_state_did_change_cb_t didChange);
+    TunerController(tuner_state_will_change_cb_t willChange, tuner_state_did_change_cb_t didChange, tuner_footswitch_pressed_cb_t footswitchPressed);
 
     /// @brief Gets the tuner's current state (thread safe).
     /// @return The state.
@@ -63,6 +68,9 @@ public:
     /// @param new_state The new state.
     void setState(TunerState new_state);
 
+    /// @brief Called when the momentary foot switch is pressed.
+    /// @param press Indicates the type of press.
+    void footswitchPressed(FootswitchPress press);
 };
 
 #endif

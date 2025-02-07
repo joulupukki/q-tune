@@ -193,7 +193,7 @@ void tuner_gui_task(void *pvParameter) {
     lvgl_port_add_touch(&touch_cfg);
 
     if (lvgl_port_lock(0)) {
-        ESP_ERROR_CHECK(lcd_display_brightness_set(userSettings->displayBrightness * 100));
+        ESP_ERROR_CHECK(lcd_display_brightness_set(userSettings->displayBrightness * 10 + 10)); // Adjust for 0 - 10%, 1 - 20%, etc.
         ESP_ERROR_CHECK(lcd_display_rotate(lvgl_display, userSettings->getDisplayOrientation()));
         // ESP_ERROR_CHECK(lcd_display_rotate(lvgl_display, LV_DISPLAY_ROTATION_0)); // Upside Down
         lvgl_port_unlock();
@@ -280,9 +280,11 @@ void update_ui(TunerState old_state, TunerState new_state) {
         create_settings_ui();
         break;
     case tunerStateStandby:
+        lcd_display_brightness_set(0.0); // Turn off the display
         create_standby_ui();
         break;
     case tunerStateTuning:
+        lcd_display_brightness_set(userSettings->displayBrightness * 10 + 10); // Turn the display back on
         create_tuning_ui();
         break;
     default:

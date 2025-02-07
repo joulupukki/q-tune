@@ -40,7 +40,7 @@ extern "C" { // because these files are C and not C++
 #include "defines.h"
 
 enum TunerOrientation: uint8_t {
-    orientationNormal,
+    orientationNormal = 0,
     orientationLeft,
     orientationRight,
     orientationUpsideDown,
@@ -67,6 +67,9 @@ class UserSettings {
     nvs_handle_t    nvsHandle;
     bool isShowingMenu = false;
 
+    lv_style_t radioStyle;
+    lv_style_t radioCheckStyle;
+
     settings_will_show_cb_t settingsWillShowCallback;
     settings_changed_cb_t settingsChangedCallback;
     settings_will_exit_cb_t settingsWillExitCallback;
@@ -78,6 +81,9 @@ class UserSettings {
     /// @param isShowing 
     void setIsShowingSettings(bool isShowing);
 
+    void advanceToNextButton();
+    void pressFocusedButton();
+
 public:
     // User Setting Variables
     TunerState          initialState            = DEFAULT_INITIAL_STATE;
@@ -86,13 +92,19 @@ public:
     uint8_t             inTuneCentsWidth        = DEFAULT_IN_TUNE_CENTS_WIDTH;
     lv_palette_t        noteNamePalette         = DEFAULT_NOTE_NAME_PALETTE;
     TunerOrientation    displayOrientation      = DEFAULT_DISPLAY_ORIENTATION;
-    float               displayBrightness       = DEFAULT_DISPLAY_BRIGHTNESS;
+    uint8_t             displayBrightness       = DEFAULT_DISPLAY_BRIGHTNESS;
 
     float               expSmoothing            = DEFAULT_EXP_SMOOTHING;
     float               oneEUBeta               = DEFAULT_ONE_EU_BETA;
     float               noteDebounceInterval    = DEFAULT_NOTE_DEBOUNCE_INTERVAL;
     bool                use1EUFilterFirst       = DEFAULT_USE_1EU_FILTER_FIRST;
 //    float               movingAvgWindow         = DEFAULT_MOVING_AVG_WINDOW;
+
+    /// @brief This is used when dealing with a setting that doesn't use a
+    /// uint8_t for its storage when dealing with a radio list.
+    uint8_t currentSettingIndex;
+
+    lv_style_t focusedButtonStyle;
 
     /**
      * @brief Create the settings object and sets its parameters
@@ -115,7 +127,7 @@ public:
      * @brief Get the user setting for display orientation.
      */
     lv_display_rotation_t getDisplayOrientation();
-    void setDisplayBrightness(float newBrightness);
+    void setDisplayBrightness(uint8_t newBrightness);
 
     /**
      * @brief Gives UserSettings a handle to the main display and the main screen.
@@ -132,6 +144,15 @@ public:
     void createMenu(const char *buttonNames[], const char *buttonSymbols[], lv_palette_t *buttonColors, lv_event_cb_t eventCallbacks[], int numOfButtons);
     void removeCurrentMenu();
     void createSlider(const char *sliderName, int32_t minRange, int32_t maxRange, lv_event_cb_t sliderCallback, float *sliderValue);
+
+    /// @brief Create a screen that shows a radio list.
+    /// @param title The title of the radio list/setting.
+    /// @param itemStrings The items to show in the radio list.
+    /// @param numOfItems Number of items in the `itemStrings` array.
+    /// @param radioCallback A callback function that will be called when a radio item is selected.
+    /// @param radioValue Pointer to the user setting.
+    /// @param valueOffset The offset to add to the radio value when saving it to the user settings.
+    void createRadioList(const char *title, const char *itemStrings[], int numOfItems, const lv_palette_t *itemColors, lv_event_cb_t radioCallback, uint8_t *radioValue, int valueOffset);
     void createRoller(const char *title, const char *itemsString, lv_event_cb_t rollerCallback, uint8_t *rollerValue);
     void createSpinbox(const char *title, uint32_t minRange, uint32_t maxRange, uint32_t digitCount, uint32_t separatorPosition, float *spinboxValue, float conversionFactor);
 
@@ -141,6 +162,8 @@ public:
     void exitSettings();
 
     void rotateScreenTo(TunerOrientation newRotation);
+
+    void footswitchPressed(FootswitchPress press);
 };
 
 #endif

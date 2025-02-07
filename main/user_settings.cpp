@@ -68,7 +68,7 @@ extern size_t num_of_available_guis;
 #define SETTING_KEY_NOTE_DEBOUNCE_INTERVAL  "note_debounce"
 #define SETTING_KEY_USE_1EU_FILTER_FIRST    "oneEUFilter1st"
 // #define SETTING_KEY_MOVING_AVG_WINDOW_SIZE  "movingAvgWindow"
-#define SETTING_KEY_DISPLAY_BRIGHTNESS      "disp_brightness"
+#define SETTING_KEY_DISPLAY_BRIGHTNESS      "dsp_brightness"
 
 /*
 
@@ -107,33 +107,22 @@ static void handleTunerButtonClicked(lv_event_t *e);
 static void handleTunerModeButtonClicked(lv_event_t *e);
 static void handleTunerModeSelected(lv_event_t *e);
 static void handleInTuneThresholdButtonClicked(lv_event_t *e);
-static void handleInTuneThresholdButtonValueClicked(lv_event_t *e);
-static void handleInTuneThresholdRoller(lv_event_t *e);
+static void handleInTuneThresholdRadio(lv_event_t *e);
 
 static void handleDisplayButtonClicked(lv_event_t *e);
 static void handleBrightnessButtonClicked(lv_event_t *e);
-static void handleBrightnessSlider(lv_event_t *e);
+static void handleBrightnessSelected(lv_event_t *e);
 
 static void handleNoteColorButtonClicked(lv_event_t *e);
+static lv_palette_t paletteForSettingIndex(uint8_t settingIndex);
+static uint8_t settingIndexForPalette(lv_palette_t palette);
 static void handleNoteColorSelected(lv_event_t *e);
-static void handleNoteColorWhiteSelected(lv_event_t *e);
-static void handleNoteColorRedSelected(lv_event_t *e);
-static void handleNoteColorPinkSelected(lv_event_t *e);
-static void handleNoteColorPurpleSelected(lv_event_t *e);
-static void handleNoteColorBlueSelected(lv_event_t *e);
-static void handleNoteColorGreenSelected(lv_event_t *e);
-static void handleNoteColorOrangeSelected(lv_event_t *e);
-static void handleNoteColorYellowSelected(lv_event_t *e);
 
 static void handleInitialScreenButtonClicked(lv_event_t *e);
-static void handleInitialStandbyButtonClicked(lv_event_t *e);
-static void handleInitialTuningButtonClicked(lv_event_t *e);
+static void handleInitialStateSelected(lv_event_t *e);
 
 static void handleRotationButtonClicked(lv_event_t *e);
-static void handleRotationNormalClicked(lv_event_t *e);
-static void handleRotationLeftClicked(lv_event_t *e);
-static void handleRotationRightClicked(lv_event_t *e);
-static void handleRotationUpsideDnClicked(lv_event_t *e);
+static void handleRotationSelected(lv_event_t *e);
 
 static void handleDebugButtonClicked(lv_event_t *e);
 static void handleExpSmoothingButtonClicked(lv_event_t *e);
@@ -165,36 +154,45 @@ void UserSettings::loadSettings() {
     } else {
         initialState = DEFAULT_INITIAL_STATE;
     }
+    if (initialState == tunerStateBooting) {
+        initialState = DEFAULT_INITIAL_STATE;
+    }
+    ESP_LOGI(TAG, "Initial State: %d", initialState);
 
     if (nvs_get_u8(nvsHandle, SETTING_STANDBY_GUI_INDEX, &value) == ESP_OK) {
         standbyGUIIndex = value;
     } else {
         standbyGUIIndex = DEFAULT_STANDBY_GUI_INDEX;
     }
+    ESP_LOGI(TAG, "Standby GUI Index: %d", standbyGUIIndex);
 
     if (nvs_get_u8(nvsHandle, SETTING_TUNER_GUI_INDEX, &value) == ESP_OK) {
         tunerGUIIndex = value;
     } else {
         tunerGUIIndex = DEFAULT_TUNER_GUI_INDEX;
     }
+    ESP_LOGI(TAG, "Tuner GUI Index: %d", tunerGUIIndex);
 
     if (nvs_get_u8(nvsHandle, SETTING_KEY_IN_TUNE_WIDTH, &value) == ESP_OK) {
         inTuneCentsWidth = value;
     } else {
         inTuneCentsWidth = DEFAULT_IN_TUNE_CENTS_WIDTH;
     }
+    ESP_LOGI(TAG, "In Tune Width: %d", inTuneCentsWidth);
 
     if (nvs_get_u8(nvsHandle, SETTING_KEY_NOTE_NAME_PALETTE, &value) == ESP_OK) {
         noteNamePalette = (lv_palette_t)value;
     } else {
         noteNamePalette = DEFAULT_NOTE_NAME_PALETTE;
     }
+    ESP_LOGI(TAG, "Note Name Palette: %d", noteNamePalette);
 
     if (nvs_get_u8(nvsHandle, SETTING_KEY_DISPLAY_ORIENTATION, &value) == ESP_OK) {
         displayOrientation = (TunerOrientation)value;
     } else {
         displayOrientation = DEFAULT_DISPLAY_ORIENTATION;
     }
+    ESP_LOGI(TAG, "Display Orientation: %d", displayOrientation);
 
     if (nvs_get_u8(nvsHandle, SETTING_KEY_EXP_SMOOTHING, &value) == ESP_OK) {
         expSmoothing = ((float)value) * 0.01;
@@ -227,16 +225,45 @@ void UserSettings::loadSettings() {
     // }
 
     if (nvs_get_u8(nvsHandle, SETTING_KEY_DISPLAY_BRIGHTNESS, &value) == ESP_OK) {
-        displayBrightness = ((float)value) * 0.01;
+        displayBrightness = value;
     } else {
         displayBrightness = DEFAULT_DISPLAY_BRIGHTNESS;
     }
+    ESP_LOGI(TAG, "Display Brightness: %d", displayBrightness);
 }
 
 void UserSettings::setIsShowingSettings(bool isShowing) {
     portENTER_CRITICAL(&isShowingMenu_mutex);
     isShowingMenu = isShowing;
     portEXIT_CRITICAL(&isShowingMenu_mutex);
+}
+
+void UserSettings::advanceToNextButton() {
+    lv_group_t *group = lv_group_get_default();
+    if (group == NULL) {
+        ESP_LOGI(TAG, "advanceToNextButton - group is NULL");
+        return;
+    }
+    lv_group_focus_next(group);
+}
+
+void UserSettings::pressFocusedButton() {
+    lv_group_t *group = lv_group_get_default();
+    if (group == NULL) {
+        ESP_LOGI(TAG, "pressFocusedButton - group is NULL");
+        return;
+    }
+    lv_obj_t *btn = lv_group_get_focused(group);
+    if (btn == NULL) {
+        ESP_LOGI(TAG, "pressFocusedButton - btn is NULL");
+        return;
+    }
+    // const lv_obj_class_t *btnClass = lv_obj_get_class(btn);
+    // if (btnClass == &lv_button_class || btnClass == &lv_checkbox_class) {
+    //     lv_obj_send_event(btn, LV_EVENT_CLICKED, NULL);
+    // } else {
+        lv_obj_send_event(btn, LV_EVENT_CLICKED, NULL);
+    // }
 }
 
 //
@@ -247,6 +274,7 @@ UserSettings::UserSettings(settings_will_show_cb_t showCallback, settings_change
     settingsWillShowCallback = showCallback;
     settingsChangedCallback = changedCallback;
     settingsWillExitCallback = exitCallback;
+    currentSettingIndex = 0;
     loadSettings();
 }
 
@@ -264,21 +292,27 @@ void UserSettings::saveSettings() {
     uint32_t value32;
 
     value = initialState;
+    ESP_LOGI(TAG, "Initial State: %d", value);
     nvs_set_u8(nvsHandle, SETTINGS_INITIAL_SCREEN, value);
 
     value = standbyGUIIndex;
+    ESP_LOGI(TAG, "Standby GUI Index: %d", value);
     nvs_set_u8(nvsHandle, SETTING_STANDBY_GUI_INDEX, value);
 
     value = tunerGUIIndex;
+    ESP_LOGI(TAG, "Tuner GUI Index: %d", value);
     nvs_set_u8(nvsHandle, SETTING_TUNER_GUI_INDEX, value);
 
     value = inTuneCentsWidth;
+    ESP_LOGI(TAG, "In Tune Width: %d", value);
     nvs_set_u8(nvsHandle, SETTING_KEY_IN_TUNE_WIDTH, value);
 
     value = (uint8_t)noteNamePalette;
+    ESP_LOGI(TAG, "Note Name Palette: %d", value);
     nvs_set_u8(nvsHandle, SETTING_KEY_NOTE_NAME_PALETTE, value);
 
     value = (uint8_t)displayOrientation;
+    ESP_LOGI(TAG, "Display Orientation: %d", value);
     nvs_set_u8(nvsHandle, SETTING_KEY_DISPLAY_ORIENTATION, value);
 
     value = (uint8_t)(expSmoothing * 100);
@@ -296,7 +330,8 @@ void UserSettings::saveSettings() {
     // value32 = (uint32_t)movingAvgWindow;
     // nvs_set_u32(nvsHandle, SETTING_KEY_MOVING_AVG_WINDOW_SIZE, value32);
 
-    value = (uint8_t)(displayBrightness * 100);
+    value = displayBrightness;
+    ESP_LOGI(TAG, "Display Brightness: %d", value);
     nvs_set_u8(nvsHandle, SETTING_KEY_DISPLAY_BRIGHTNESS, value);
 
     nvs_commit(nvsHandle);
@@ -365,7 +400,39 @@ void UserSettings::showSettings() {
         handleDebugButtonClicked,
         handleAboutButtonClicked,
     };
+
+    lv_style_init(&focusedButtonStyle);
+    lv_style_set_border_color(&focusedButtonStyle, lv_color_white());
+    lv_style_set_border_width(&focusedButtonStyle, 2);
+
+    lv_style_init(&radioStyle);
+    lv_style_set_radius(&radioStyle, LV_RADIUS_CIRCLE);
+
+    lv_style_init(&radioCheckStyle);
+    lv_style_set_bg_img_src(&radioCheckStyle, NULL);
+
     createMenu(buttonNames, symbolNames, NULL, callbackFunctions, 4);
+}
+
+static lv_group_t * find_group_in_parent(lv_obj_t *parent) {
+    lv_group_t *group = lv_obj_get_group(parent);
+    if (group != NULL) {
+        return group;
+    }
+
+    // Recursively look through children of the parent
+    int numOfChildren = lv_obj_get_child_cnt(parent);
+    if (numOfChildren == 0) {
+        return NULL;
+    }
+    for (int i = 0; i < numOfChildren; i++) {
+        lv_obj_t *child = lv_obj_get_child(parent, i);
+        group = find_group_in_parent(child);
+        if (group != NULL) {
+            return group;
+        }
+    }
+    return NULL;
 }
 
 void UserSettings::createMenu(const char *buttonNames[], const char *buttonSymbols[], lv_palette_t *buttonColors, lv_event_cb_t eventCallbacks[], int numOfButtons) {
@@ -388,6 +455,9 @@ void UserSettings::createMenu(const char *buttonNames[], const char *buttonSymbo
 
     lv_obj_t *btn;
     lv_obj_t *label;
+    lv_group_t *group = lv_group_create();
+    lv_group_set_wrap(group, true);
+    lv_group_set_default(group);
 
     int32_t buttonWidthPercentage = 100;
 
@@ -396,6 +466,10 @@ void UserSettings::createMenu(const char *buttonNames[], const char *buttonSymbo
         const char *buttonName = buttonNames[i];
         lv_event_cb_t eventCallback = eventCallbacks[i];
         btn = lv_btn_create(scrollable);
+        if (i == 0) {
+            lv_obj_add_state(btn, LV_STATE_FOCUSED);
+        }
+        lv_obj_add_style(btn, &focusedButtonStyle, LV_STATE_FOCUSED);
         lv_obj_set_width(btn, lv_pct(buttonWidthPercentage));
         lv_obj_set_user_data(btn, this);
         lv_obj_add_event_cb(btn, eventCallback, LV_EVENT_CLICKED, btn);
@@ -419,11 +493,14 @@ void UserSettings::createMenu(const char *buttonNames[], const char *buttonSymbo
                 lv_obj_set_style_bg_color(btn, lv_palette_main(palette), 0);
             }
         }
+
+        lv_group_add_obj(group, btn);
     }
 
     if (screenStack.size() == 1) {
         // We're on the top menu - include an exit button
         btn = lv_btn_create(scrollable);
+        lv_obj_add_style(btn, &focusedButtonStyle, LV_STATE_FOCUSED);
         lv_obj_set_user_data(btn, this);
         lv_obj_set_width(btn, lv_pct(buttonWidthPercentage));
         lv_obj_add_event_cb(btn, handleExitButtonClicked, LV_EVENT_CLICKED, btn);
@@ -431,9 +508,11 @@ void UserSettings::createMenu(const char *buttonNames[], const char *buttonSymbo
         lv_label_set_text_static(label, MENU_BTN_EXIT);
         lv_obj_set_style_text_align(btn, LV_TEXT_ALIGN_CENTER, 0);
         lv_obj_align(label, LV_ALIGN_CENTER, 0, 0);
+        lv_group_add_obj(group, btn);
     } else {
         // We're in a submenu - include a back button
         btn = lv_btn_create(scrollable);
+        lv_obj_add_style(btn, &focusedButtonStyle, LV_STATE_FOCUSED);
         lv_obj_set_user_data(btn, this);
         lv_obj_set_width(btn, lv_pct(buttonWidthPercentage));
         lv_obj_add_event_cb(btn, handleBackButtonClicked, LV_EVENT_CLICKED, btn);
@@ -441,6 +520,7 @@ void UserSettings::createMenu(const char *buttonNames[], const char *buttonSymbo
         lv_label_set_text_static(label, MENU_BTN_BACK);
         lv_obj_set_style_text_align(btn, LV_TEXT_ALIGN_CENTER, 0);
         lv_obj_align(label, LV_ALIGN_CENTER, 0, 0);
+        lv_group_add_obj(group, btn);
     }
 
     screenStack.push_back(scr); // Save the new screen on the stack
@@ -461,6 +541,12 @@ void UserSettings::removeCurrentMenu() {
 
     lv_obj_clean(currentScreen);    // Clean up the screen so memory is cleared from sub items
     lv_obj_del(currentScreen);      // Remove the old screen from memory
+
+    // Restore the default group so it can be navigated with the foot switch
+    lv_group_t *group = find_group_in_parent(parentScreen);
+    if (group != NULL) {
+        lv_group_set_default(group);
+    }
 
     lvgl_port_unlock();
 }
@@ -519,50 +605,89 @@ void UserSettings::createSlider(const char *sliderName, int32_t minRange, int32_
     lvgl_port_unlock();
 }
 
-void UserSettings::createRoller(const char *title, const char *itemsString, lv_event_cb_t rollerCallback, uint8_t *rollerValue) {
+void UserSettings::createRadioList(const char *title,
+                                   const char *itemStrings[],
+                                   int numOfItems,
+                                   const lv_palette_t *itemColors,
+                                   lv_event_cb_t radioCallback,
+                                   uint8_t *radioValue,
+                                   int valueOffset) {
     if (!lvgl_port_lock(0)) {
         return;
     }
     lv_obj_t *scr = lv_obj_create(NULL);
 
-    // Create a scrollable container
-    lv_obj_t *scrollable = lv_obj_create(scr);
-    lv_obj_set_size(scrollable, lv_pct(100), lv_pct(100)); // Full size of the parent
-    lv_obj_set_flex_flow(scrollable, LV_FLEX_FLOW_COLUMN); // Arrange children in a vertical list
-    lv_obj_set_scroll_dir(scrollable, LV_DIR_VER);         // Enable vertical scrolling
-    lv_obj_set_scrollbar_mode(scrollable, LV_SCROLLBAR_MODE_AUTO); // Show scrollbar when scrolling
-    lv_obj_set_style_pad_all(scrollable, 10, 0);           // Add padding for aesthetics
-    lv_obj_set_style_bg_color(scrollable, lv_color_black(), 0); // Optional background color
+    // Adjust the settings value to be 0-based if needed.
+    uint8_t zeroBasedValue = *radioValue;
+    if (zeroBasedValue > numOfItems) {
+        zeroBasedValue = 0;
+    }
+    if (zeroBasedValue > 0) {
+        zeroBasedValue -= valueOffset;
+    }
+
+    lv_group_t *group = lv_group_create();
+    lv_group_set_wrap(group, true);
+    lv_group_set_default(group);
 
     // Show the title of the screen at the top middle
-    lv_obj_t *label = lv_label_create(scrollable);
+    lv_obj_t *label = lv_label_create(scr);
     lv_label_set_text_static(label, title);
     lv_obj_set_width(label, lv_pct(100));
     lv_obj_set_style_text_align(label, LV_TEXT_ALIGN_CENTER, 0);
+    lv_obj_align(label, LV_ALIGN_TOP_MID, 0, 0);
+    lv_obj_set_style_pad_all(label, 10, 0);           // Add padding for aesthetics
 
-    // lv_obj_t *spacer = lv_obj_create(scrollable);
-    // lv_obj_remove_style_all(spacer);
-    // lv_obj_set_width(spacer, lv_pct(100));
-    // lv_obj_set_flex_grow(spacer, 2);
+    // Create a container
+    lv_obj_t *cont1 = lv_obj_create(scr);
+    lv_obj_set_size(cont1, LV_SIZE_CONTENT, lv_pct(60));
+    lv_obj_set_flex_flow(cont1, LV_FLEX_FLOW_COLUMN); // Arrange children in a vertical list
+    lv_obj_set_style_pad_all(cont1, 10, 0);           // Add padding for aesthetics
+    lv_obj_set_style_bg_color(cont1, lv_color_black(), 0); // Optional background color
+    lv_obj_add_event_cb(cont1, radioCallback, LV_EVENT_CLICKED, (void *)radioValue);
+    lv_obj_align(cont1, LV_ALIGN_CENTER, 0, 0);
+    lv_obj_set_user_data(cont1, this); // Pass UserSettings object to the event callback
 
-    lv_obj_t * roller = lv_roller_create(scrollable);
-    lv_obj_set_user_data(roller, this);
-    lv_roller_set_options(roller, itemsString, LV_ROLLER_MODE_NORMAL);
-    lv_roller_set_visible_row_count(roller, 4);
-    lv_roller_set_selected(roller, *rollerValue - 1, LV_ANIM_OFF); // TODO: This "-1" is for the In-Tune Threshold and this function should be made to be more generic
-    lv_obj_set_width(roller, lv_pct(100));
-    lv_obj_set_flex_grow(roller, 2);
-    lv_obj_add_event_cb(roller, rollerCallback, LV_EVENT_ALL, rollerValue);
+    // lv_obj_t *scrollToItem = NULL;
+    for (int i = 0; i < numOfItems; i++) {
+        lv_obj_t * obj = lv_checkbox_create(cont1);
+        lv_checkbox_set_text(obj, itemStrings[i]);
+        lv_obj_add_flag(obj, LV_OBJ_FLAG_EVENT_BUBBLE);
+        lv_obj_add_style(obj, &radioStyle, LV_PART_INDICATOR);
+        lv_obj_add_style(obj, &radioCheckStyle, LV_PART_INDICATOR | LV_STATE_CHECKED);
+        lv_group_add_obj(group, obj);
+        lv_obj_add_style(obj, &focusedButtonStyle, LV_STATE_FOCUSED);
+        if (i == zeroBasedValue) {
+            lv_obj_add_state(obj, LV_STATE_CHECKED);
+            // scrollToItem = obj;
+        }
+        if (itemColors != NULL) {
+            // Set the color of the checkbox text
+            if (itemColors[i] == LV_PALETTE_NONE) {
+                lv_obj_set_style_text_color(obj, lv_color_white(), 0);
+            } else {
+                lv_obj_set_style_text_color(obj, lv_palette_main(itemColors[i]), 0);
+            }
+        }
+    }
 
+    // // Make sure the selected item is in view
+    // if (scrollToItem != NULL) {
+    //     lv_obj_scroll_to_view(scrollToItem, LV_ANIM_OFF);
+    // }
 
-    lv_obj_t *btn = lv_btn_create(scrollable);
+    lv_obj_t *btn = lv_btn_create(scr);
+    lv_obj_add_style(btn, &focusedButtonStyle, LV_STATE_FOCUSED);
+    lv_group_add_obj(group, btn);
     lv_obj_set_user_data(btn, this);
     lv_obj_set_width(btn, lv_pct(100));
     lv_obj_add_event_cb(btn, handleBackButtonClicked, LV_EVENT_CLICKED, btn);
     label = lv_label_create(btn);
     lv_label_set_text_static(label, MENU_BTN_BACK);
-    lv_obj_set_style_text_align(btn, LV_TEXT_ALIGN_CENTER, 0);
+    lv_obj_set_style_text_align(label, LV_TEXT_ALIGN_CENTER, 0);
     lv_obj_align(label, LV_ALIGN_CENTER, 0, 0);
+    lv_obj_align(btn, LV_ALIGN_BOTTOM_MID, 0, 0);
+    lv_obj_set_style_pad_all(btn, 10, 0);
 
     screenStack.push_back(scr); // Save the new screen on the stack
     lv_screen_load(scr);        // Activate the new screen
@@ -676,7 +801,6 @@ void UserSettings::createSpinbox(const char *title, uint32_t minRange, uint32_t 
 }
 
 void UserSettings::exitSettings() {
-    lv_obj_t *mainScreen = screenStack.front();
     settingsWillExitCallback();
 
     // Remove all but the first item out of the screenStack.
@@ -702,15 +826,19 @@ void UserSettings::rotateScreenTo(TunerOrientation newRotation) {
     switch (newRotation)
     {
     case orientationNormal:
+    ESP_LOGI(TAG, "Rotating to normal");
         new_rotation = LV_DISPLAY_ROTATION_180;
         break;
     case orientationLeft:
+    ESP_LOGI(TAG, "Rotating to left");
         new_rotation = LV_DISPLAY_ROTATION_90;
         break;
     case orientationRight:
+    ESP_LOGI(TAG, "Rotating to right");
         new_rotation = LV_DISPLAY_ROTATION_270;
         break;
     default:
+    ESP_LOGI(TAG, "Rotating to upside down");
         new_rotation = LV_DISPLAY_ROTATION_0;
         break;
     }
@@ -760,38 +888,46 @@ static void handleTunerModeButtonClicked(lv_event_t *e) {
     lvgl_port_unlock();
 
     const char **buttonNames = (const char **)malloc(sizeof(const char *) * num_of_available_guis);
-    lv_event_cb_t *callbackFunctions = (lv_event_cb_t *)malloc(sizeof(lv_event_cb_t) * num_of_available_guis);
 
     for (int i = 0; i < num_of_available_guis; i++) {
         buttonNames[i] = available_guis[i].get_name();
-        callbackFunctions[i] = handleTunerModeSelected;
     }
 
-    settings->createMenu(buttonNames, NULL, NULL, callbackFunctions, num_of_available_guis);
+    settings->createRadioList((const char *)MENU_BTN_TUNER_MODE, 
+                               buttonNames,
+                               num_of_available_guis,
+                               NULL,
+                               handleTunerModeSelected,
+                               &settings->tunerGUIIndex,
+                               0); // This setting is 0-based
+
     free(buttonNames);
-    free(callbackFunctions);
 }
 
 static void handleTunerModeSelected(lv_event_t *e) {
     ESP_LOGI(TAG, "Tuner mode clicked");
-    UserSettings *settings;
     if (!lvgl_port_lock(0)) {
         return;
     }
-    settings = (UserSettings *)lv_obj_get_user_data((lv_obj_t *)lv_event_get_target(e));
+    uint8_t *tunerSetting = (uint8_t *)lv_event_get_user_data(e);
 
-    // Determine which mode was selected by the name of the button selected
-    lv_obj_t *btn = (lv_obj_t *)lv_event_get_target(e);
-    lv_obj_t *label = lv_obj_get_child(btn, 0);
-    char *button_text = lv_label_get_text(label);
-
+    lv_obj_t * cont = (lv_obj_t *)lv_event_get_current_target(e);
+    lv_obj_t * act_cb = (lv_obj_t *)lv_event_get_target(e);
+    char *button_text = lv_label_get_text(act_cb);
+    lv_obj_t * old_cb = (lv_obj_t *)lv_obj_get_child(cont, *tunerSetting);
     lvgl_port_unlock();
+
+    // Do nothing if the container was clicked
+    if(act_cb == cont) return;
+
+    lv_obj_remove_state(old_cb, LV_STATE_CHECKED);   /*Uncheck the previous radio button*/
+    lv_obj_add_state(act_cb, LV_STATE_CHECKED);     /*Uncheck the current radio button*/
 
     for (int i = 0; i < num_of_available_guis; i++) {
         if (strcmp(available_guis[i].get_name(), button_text) == 0) {
             // This is the one!
-            settings->tunerGUIIndex = i;
-            settings->removeCurrentMenu(); // Don't make the user click back
+            ESP_LOGI(TAG, "New Tuner GUI setting: %d", i);
+            *tunerSetting = i;
             return;
         }
     }
@@ -805,66 +941,47 @@ static void handleInTuneThresholdButtonClicked(lv_event_t *e) {
     }
     settings = (UserSettings *)lv_obj_get_user_data((lv_obj_t *)lv_event_get_target(e));
     lvgl_port_unlock();
-    settings->createRoller((const char *)MENU_BTN_IN_TUNE_THRESHOLD,
-                           (const char *)"+/- 1 cent\n"
-                           "+/- 2 cents\n"
-                           "+/- 3 cents\n"
-                           "+/- 4 cents\n"
-                           "+/- 5 cents\n"
-                           "+/- 6 cents",
-                           handleInTuneThresholdRoller,
-                           &settings->inTuneCentsWidth);
+    const char *buttonNames[] = {
+        "+/- 1 cent",
+        "+/- 2 cents",
+        "+/- 3 cents",
+        "+/- 4 cents",
+        "+/- 5 cents",
+        "+/- 6 cents"
+    };
+    settings->createRadioList((const char *)MENU_BTN_IN_TUNE_THRESHOLD, 
+                               buttonNames,
+                               sizeof(buttonNames) / sizeof(buttonNames[0]),
+                               NULL,
+                               handleInTuneThresholdRadio,
+                               &settings->inTuneCentsWidth,
+                               1); // this setting is 1-based instead of 0-based
 }
 
-static void handleInTuneThresholdRoller(lv_event_t *e) {
-    UserSettings *settings;
+static void handleInTuneThresholdRadio(lv_event_t *e) {
     if (!lvgl_port_lock(0)) {
         return;
     }
-    lv_obj_t *roller = (lv_obj_t *)lv_event_get_target(e);
-    uint8_t *rollerValue = (uint8_t *)lv_event_get_user_data(e);
 
-    lv_event_code_t code = lv_event_get_code(e);
-    if(code == LV_EVENT_VALUE_CHANGED) {
-        uint32_t selectedIndex = lv_roller_get_selected(roller);
-        ESP_LOGI(TAG, "In Tune Threshold Roller index selected: %ld", selectedIndex);
-        *rollerValue = selectedIndex + 1; // TODO: Make this work for other things too
+    uint8_t *thresholdSetting = (uint8_t *)lv_event_get_user_data(e); // this is 1-based
+    int32_t radioIndex = ((int32_t)*thresholdSetting) - 1;
+    if (radioIndex < 0) {
+        radioIndex = 0;
     }
 
-    lvgl_port_unlock();
-}
+    lv_obj_t * cont = (lv_obj_t *)lv_event_get_current_target(e);
+    lv_obj_t * act_cb = (lv_obj_t *)lv_event_get_target(e);
+    lv_obj_t * old_cb = (lv_obj_t *)lv_obj_get_child(cont, radioIndex);
 
-static void handleInTuneThresholdButtonValueClicked(lv_event_t *e) {
-    if (!lvgl_port_lock(0)) {
-        return;
-    }
-    ESP_LOGI(TAG, "In Tune Threshold value clicked");
-    lv_obj_t *btn = (lv_obj_t *)lv_event_get_target(e);
-    lv_obj_t *label = lv_obj_get_child(btn, 0);
-    if (label == NULL) {
-        ESP_LOGI(TAG, "Label is null");
-        lvgl_port_unlock();
-        return;
-    }
-    UserSettings *settings = (UserSettings *)lv_obj_get_user_data(btn);
-    char *text = lv_label_get_text(label);
-    if (strcmp(text, "1") == 0) {
-        settings->inTuneCentsWidth = 1;
-    } else if (strcmp(text, "2") == 0) {
-        settings->inTuneCentsWidth = 2;
-    } else if (strcmp(text, "3") == 0) {
-        settings->inTuneCentsWidth = 3;
-    } else if (strcmp(text, "4") == 0) {
-        settings->inTuneCentsWidth = 4;
-    } else if (strcmp(text, "5") == 0) {
-        settings->inTuneCentsWidth = 5;
-    } else if (strcmp(text, "6") == 0) {
-        settings->inTuneCentsWidth = 6;
-    } else if (strcmp(text, "7") == 0) {
-        settings->inTuneCentsWidth = 7;
-    } else if (strcmp(text, "8") == 0) {
-        settings->inTuneCentsWidth = 8;
-    }
+    // Do nothing if the container was clicked
+    if(act_cb == cont) return;
+
+    lv_obj_remove_state(old_cb, LV_STATE_CHECKED);   /*Uncheck the previous radio button*/
+    lv_obj_add_state(act_cb, LV_STATE_CHECKED);     /*Uncheck the current radio button*/
+
+    *thresholdSetting = lv_obj_get_index(act_cb) + 1; // Adjust before storing into settings for 1-based values
+    ESP_LOGI(TAG, "New In Tune Threshold setting: %d", *thresholdSetting);
+
     lvgl_port_unlock();
 }
 
@@ -892,30 +1009,62 @@ static void handleDisplayButtonClicked(lv_event_t *e) {
 }
 
 static void handleBrightnessButtonClicked(lv_event_t *e) {
-    ESP_LOGI(TAG, "Brightness slider changed");
+    ESP_LOGI(TAG, "Brightness button clicked");
     UserSettings *settings;
     if (!lvgl_port_lock(0)) {
         return;
     }
     settings = (UserSettings *)lv_obj_get_user_data((lv_obj_t *)lv_event_get_target(e));
     lvgl_port_unlock();
-    settings->createSlider(MENU_BTN_BRIGHTNESS, 10, 100, handleBrightnessSlider, &settings->displayBrightness);
+    const char *buttonNames[] = {
+        "10%",
+        "20%",
+        "30%",
+        "40%",
+        "50%",
+        "60%",
+        "70%",
+        "80%",
+        "90%",
+        "100%",
+    };
+    settings->createRadioList((const char *)MENU_BTN_BRIGHTNESS, 
+                               buttonNames,
+                               sizeof(buttonNames) / sizeof(buttonNames[0]),
+                               NULL,
+                               handleBrightnessSelected,
+                               &settings->displayBrightness,
+                               0); // a 0-based setting
+
 }
 
-static void handleBrightnessSlider(lv_event_t *e) {
+static void handleBrightnessSelected(lv_event_t *e) {
     if (!lvgl_port_lock(0)) {
         return;
     }
-    lv_obj_t * slider = (lv_obj_t *)lv_event_get_target(e);
-    float *sliderValue = (float *)lv_event_get_user_data(e);
-    UserSettings *settings = (UserSettings *)lv_obj_get_user_data(slider);
-
-    uint8_t newValue = (uint8_t)lv_slider_get_value(slider);
-
-    if (lcd_display_brightness_set(newValue) == ESP_OK) {
-        *sliderValue = (float)newValue * 0.01;
-        ESP_LOGI(TAG, "New slider value: %.2f", *sliderValue);
+    uint8_t *brightnessSetting = (uint8_t *)lv_event_get_user_data(e);
+    int32_t radioIndex = ((int32_t)*brightnessSetting);
+    if (radioIndex < 0) {
+        radioIndex = 0;
     }
+
+    lv_obj_t * cont = (lv_obj_t *)lv_event_get_current_target(e);
+    lv_obj_t * act_cb = (lv_obj_t *)lv_event_get_target(e);
+    lv_obj_t * old_cb = (lv_obj_t *)lv_obj_get_child(cont, radioIndex);
+
+    // Do nothing if the container was clicked
+    if(act_cb == cont) return;
+
+    lv_obj_remove_state(old_cb, LV_STATE_CHECKED);   /*Uncheck the previous radio button*/
+    lv_obj_add_state(act_cb, LV_STATE_CHECKED);     /*Uncheck the current radio button*/
+
+    int32_t newIndex = lv_obj_get_index(act_cb);
+    float brightnessValue = (float)newIndex * 10 + 10;
+    if (lcd_display_brightness_set(brightnessValue) == ESP_OK) {
+        *brightnessSetting = (uint8_t)newIndex;
+        ESP_LOGI(TAG, "New display brightness setting is %ld (%f%%)", newIndex, brightnessValue);
+    }
+
     lvgl_port_unlock();
 }
 
@@ -946,62 +1095,90 @@ static void handleNoteColorButtonClicked(lv_event_t *e) {
         LV_PALETTE_ORANGE,
         LV_PALETTE_YELLOW,
     };
-    lv_event_cb_t callbackFunctions[] = {
-        handleNoteColorWhiteSelected,
-        handleNoteColorRedSelected,
-        handleNoteColorPinkSelected,
-        handleNoteColorPurpleSelected,
-        handleNoteColorBlueSelected,
-        handleNoteColorGreenSelected,
-        handleNoteColorOrangeSelected,
-        handleNoteColorYellowSelected,
-    };
-    settings->createMenu(buttonNames, NULL, buttonColors, callbackFunctions, 8);
+    settings->currentSettingIndex = settingIndexForPalette(settings->noteNamePalette);
+    settings->createRadioList((const char *)MENU_BTN_NOTE_COLOR, 
+                               buttonNames,
+                               sizeof(buttonNames) / sizeof(buttonNames[0]),
+                               buttonColors,
+                               handleNoteColorSelected,
+                               &settings->currentSettingIndex,
+                               0); // a 0-based setting
 }
 
-static void handleNoteColorSelected(lv_event_t *e, lv_palette_t palette) {
-    ESP_LOGI(TAG, "Note Color Selection clicked");
+static lv_palette_t paletteForSettingIndex(uint8_t settingIndex) {
+    switch (settingIndex) {
+        case 0:
+            return LV_PALETTE_NONE;
+        case 1:
+            return LV_PALETTE_RED;
+        case 2:
+            return LV_PALETTE_PINK;
+        case 3:
+            return LV_PALETTE_PURPLE;
+        case 4:
+            return LV_PALETTE_LIGHT_BLUE;
+        case 5:
+            return LV_PALETTE_LIGHT_GREEN;
+        case 6:
+            return LV_PALETTE_ORANGE;
+        case 7:
+            return LV_PALETTE_YELLOW;
+        default:
+            return LV_PALETTE_NONE;
+    }
+}
+
+static uint8_t settingIndexForPalette(lv_palette_t palette) {
+    switch (palette) {
+        case LV_PALETTE_NONE:
+            return 0;
+        case LV_PALETTE_RED:
+            return 1;
+        case LV_PALETTE_PINK:
+            return 2;
+        case LV_PALETTE_PURPLE:
+            return 3;
+        case LV_PALETTE_LIGHT_BLUE:
+            return 4;
+        case LV_PALETTE_LIGHT_GREEN:
+            return 5;
+        case LV_PALETTE_ORANGE:
+            return 6;
+        case LV_PALETTE_YELLOW:
+            return 7;
+        default:
+            return 0;
+    }
+}   
+
+static void handleNoteColorSelected(lv_event_t *e) {
+    ESP_LOGI(TAG, "Note Color Selection changed");
     UserSettings *settings;
     if (!lvgl_port_lock(0)) {
         return;
     }
-    settings = (UserSettings *)lv_obj_get_user_data((lv_obj_t *)lv_event_get_target(e));
-    lvgl_port_unlock();
+    lv_obj_t * cont = (lv_obj_t *)lv_event_get_current_target(e);
+    settings = (UserSettings *)lv_obj_get_user_data(cont);
+
+    int32_t radioIndex = ((int32_t)settings->currentSettingIndex);
+    if (radioIndex < 0) {
+        radioIndex = 0;
+    }
+
+    lv_obj_t * act_cb = (lv_obj_t *)lv_event_get_target(e);
+    lv_obj_t * old_cb = (lv_obj_t *)lv_obj_get_child(cont, radioIndex);
+
+    // Do nothing if the container was clicked
+    if(act_cb == cont) return;
+
+    lv_obj_remove_state(old_cb, LV_STATE_CHECKED);   /*Uncheck the previous radio button*/
+    lv_obj_add_state(act_cb, LV_STATE_CHECKED);     /*Uncheck the current radio button*/
+
+    int32_t newIndex = lv_obj_get_index(act_cb);
+    lv_palette_t palette = paletteForSettingIndex(newIndex);
     settings->noteNamePalette = palette;
-    settings->saveSettings();
-    settings->removeCurrentMenu();
-}
 
-static void handleNoteColorWhiteSelected(lv_event_t *e) {
-    handleNoteColorSelected(e, LV_PALETTE_NONE);
-}
-
-static void handleNoteColorRedSelected(lv_event_t *e) {
-    handleNoteColorSelected(e, LV_PALETTE_RED);
-}
-
-static void handleNoteColorPinkSelected(lv_event_t *e) {
-    handleNoteColorSelected(e, LV_PALETTE_PINK);
-}
-
-static void handleNoteColorPurpleSelected(lv_event_t *e) {
-    handleNoteColorSelected(e, LV_PALETTE_PURPLE);
-}
-
-static void handleNoteColorBlueSelected(lv_event_t *e) {
-    handleNoteColorSelected(e, LV_PALETTE_LIGHT_BLUE);
-}
-
-static void handleNoteColorGreenSelected(lv_event_t *e) {
-    handleNoteColorSelected(e, LV_PALETTE_LIGHT_GREEN);
-}
-
-static void handleNoteColorOrangeSelected(lv_event_t *e) {
-    handleNoteColorSelected(e, LV_PALETTE_ORANGE);
-}
-
-static void handleNoteColorYellowSelected(lv_event_t *e) {
-    handleNoteColorSelected(e, LV_PALETTE_YELLOW);
+    lvgl_port_unlock();
 }
 
 static void handleInitialScreenButtonClicked(lv_event_t *e) {
@@ -1016,35 +1193,42 @@ static void handleInitialScreenButtonClicked(lv_event_t *e) {
         MENU_BTN_STANDBY,
         MENU_BTN_TUNING,
     };
-    lv_event_cb_t callbackFunctions[] = {
-        handleInitialStandbyButtonClicked,
-        handleInitialTuningButtonClicked,
-    };
-    settings->createMenu(buttonNames, NULL, NULL, callbackFunctions, 2);
+    settings->currentSettingIndex = settingIndexForPalette(settings->noteNamePalette);
+    settings->createRadioList((const char *)MENU_BTN_INITIAL_SCREEN, 
+                               buttonNames,
+                               sizeof(buttonNames) / sizeof(buttonNames[0]),
+                               NULL,
+                               handleInitialStateSelected,
+                               (uint8_t *)&settings->initialState,
+                               1); // a 1-based setting
 }
 
-static void handleInitialStandbyButtonClicked(lv_event_t *e) {
-    ESP_LOGI(TAG, "Set initial screen as standby button clicked");
-    UserSettings *settings;
+static void handleInitialStateSelected(lv_event_t *e) {
+    ESP_LOGI(TAG, "Set initial screen option selected");
     if (!lvgl_port_lock(0)) {
         return;
     }
-    settings = (UserSettings *)lv_obj_get_user_data((lv_obj_t *)lv_event_get_target(e));
-    lvgl_port_unlock();
-    settings->initialState = tunerStateStandby;
-    settings->removeCurrentMenu(); // Automatically press the back button
-}
 
-static void handleInitialTuningButtonClicked(lv_event_t *e) {
-    ESP_LOGI(TAG, "Set initial screen as tuning button clicked");
-    UserSettings *settings;
-    if (!lvgl_port_lock(0)) {
-        return;
+    uint8_t *initialStateSetting = (uint8_t *)lv_event_get_user_data(e); // this is 1-based
+    int32_t radioIndex = ((int32_t)*initialStateSetting) - 1;
+    if (radioIndex < 0) {
+        radioIndex = 0;
     }
-    settings = (UserSettings *)lv_obj_get_user_data((lv_obj_t *)lv_event_get_target(e));
+
+    lv_obj_t * cont = (lv_obj_t *)lv_event_get_current_target(e);
+    lv_obj_t * act_cb = (lv_obj_t *)lv_event_get_target(e);
+    lv_obj_t * old_cb = (lv_obj_t *)lv_obj_get_child(cont, radioIndex);
+
+    // Do nothing if the container was clicked
+    if(act_cb == cont) return;
+
+    lv_obj_remove_state(old_cb, LV_STATE_CHECKED);   /*Uncheck the previous radio button*/
+    lv_obj_add_state(act_cb, LV_STATE_CHECKED);     /*Uncheck the current radio button*/
+
+    *initialStateSetting = lv_obj_get_index(act_cb) + 1; // Adjust before storing into settings for 1-based values
+    ESP_LOGI(TAG, "New initial screen setting: %d", *initialStateSetting);
+
     lvgl_port_unlock();
-    settings->initialState = tunerStateTuning;
-    settings->removeCurrentMenu(); // Automatically press the back button
 }
 
 static void handleRotationButtonClicked(lv_event_t *e) {
@@ -1061,57 +1245,46 @@ static void handleRotationButtonClicked(lv_event_t *e) {
         MENU_BTN_ROTATION_RIGHT,
         MENU_BTN_ROTATION_UPSIDE_DN,
     };
-    lv_event_cb_t callbackFunctions[] = {
-        handleRotationNormalClicked,
-        handleRotationLeftClicked,
-        handleRotationRightClicked,
-        handleRotationUpsideDnClicked,
-    };
-    settings->createMenu(buttonNames, NULL, NULL, callbackFunctions, 4);
+    
+    settings->createRadioList((const char *)MENU_BTN_ROTATION, 
+                               buttonNames,
+                               sizeof(buttonNames) / sizeof(buttonNames[0]),
+                               NULL,
+                               handleRotationSelected,
+                               (uint8_t *)&settings->displayOrientation,
+                               0); // a 0-based setting
 }
 
-static void handleRotationNormalClicked(lv_event_t *e) {
-    ESP_LOGI(TAG, "Rotation Normal clicked");
+static void handleRotationSelected(lv_event_t *e) {
+    ESP_LOGI(TAG, "Rotation option selected");
     UserSettings *settings;
     if (!lvgl_port_lock(0)) {
         return;
     }
-    settings = (UserSettings *)lv_obj_get_user_data((lv_obj_t *)lv_event_get_target(e));
-    lvgl_port_unlock();
-    settings->rotateScreenTo(orientationNormal);
-}
 
-static void handleRotationLeftClicked(lv_event_t *e) {
-    ESP_LOGI(TAG, "Rotation Left clicked");
-    UserSettings *settings;
-    if (!lvgl_port_lock(0)) {
-        return;
+    uint8_t *rotationSetting = (uint8_t *)lv_event_get_user_data(e);
+    int32_t radioIndex = ((int32_t)*rotationSetting);
+    if (radioIndex < 0) {
+        radioIndex = 0;
     }
-    settings = (UserSettings *)lv_obj_get_user_data((lv_obj_t *)lv_event_get_target(e));
-    lvgl_port_unlock();
-    settings->rotateScreenTo(orientationLeft);
-}
 
-static void handleRotationRightClicked(lv_event_t *e) {
-    ESP_LOGI(TAG, "Rotation Right clicked");
-    UserSettings *settings;
-    if (!lvgl_port_lock(0)) {
-        return;
-    }
-    settings = (UserSettings *)lv_obj_get_user_data((lv_obj_t *)lv_event_get_target(e));
-    lvgl_port_unlock();
-    settings->rotateScreenTo(orientationRight);
-}
+    lv_obj_t * cont = (lv_obj_t *)lv_event_get_current_target(e);
+    settings = (UserSettings *)lv_obj_get_user_data(cont);
+    lv_obj_t * act_cb = (lv_obj_t *)lv_event_get_target(e);
+    lv_obj_t * old_cb = (lv_obj_t *)lv_obj_get_child(cont, radioIndex);
 
-static void handleRotationUpsideDnClicked(lv_event_t *e) {
-    ESP_LOGI(TAG, "Rotation Upside Down clicked");
-    UserSettings *settings;
-    if (!lvgl_port_lock(0)) {
-        return;
-    }
-    settings = (UserSettings *)lv_obj_get_user_data((lv_obj_t *)lv_event_get_target(e));
+    // Do nothing if the container was clicked
+    if(act_cb == cont) return;
+
+    lv_obj_remove_state(old_cb, LV_STATE_CHECKED);   /*Uncheck the previous radio button*/
+    lv_obj_add_state(act_cb, LV_STATE_CHECKED);     /*Uncheck the current radio button*/
+
     lvgl_port_unlock();
-    settings->rotateScreenTo(orientationUpsideDown);
+
+    *rotationSetting = lv_obj_get_index(act_cb);
+
+    // If the rotation is successful, it's saved in the settings
+    settings->rotateScreenTo((TunerOrientation)*rotationSetting);
 }
 
 static void handleDebugButtonClicked(lv_event_t *e) {
@@ -1230,24 +1403,39 @@ static void handleFactoryResetButtonClicked(lv_event_t *e) {
         return;
     }
     settings = (UserSettings *)lv_obj_get_user_data((lv_obj_t *)lv_event_get_target(e));
+    
+    lv_group_t *group = lv_group_create();
+    lv_group_set_wrap(group, true);
+    lv_group_set_default(group);
 
     lv_obj_t * mbox = lv_msgbox_create(lv_scr_act());
     lv_obj_set_style_pad_all(mbox, 10, 0);           // Add padding for aesthetics
     lv_msgbox_add_title(mbox, "Factory Reset");
     lv_msgbox_add_text(mbox, "Reset to factory defaults?");
-    lv_obj_t *btn = lv_msgbox_add_footer_button(mbox, "Reset");
-    lv_obj_set_user_data(btn, mbox);
-    lv_obj_set_style_bg_color(btn, lv_palette_main(LV_PALETTE_RED), 0);
-    lv_obj_add_event_cb(btn, handleFactoryResetChickenOutConfirmed, LV_EVENT_CLICKED, settings);
-    btn = lv_msgbox_add_footer_button(mbox, "Cancel");
+    lv_obj_t *btn = lv_msgbox_add_footer_button(mbox, "Cancel");
+    lv_group_add_obj(group, btn);
+    lv_obj_add_style(btn, &settings->focusedButtonStyle, LV_STATE_FOCUSED);
     lv_obj_add_event_cb(btn, [](lv_event_t *e) {
         if (!lvgl_port_lock(0)) {
             return;
         }
         lv_obj_t *mbox = (lv_obj_t *)lv_event_get_user_data(e);
         lv_obj_del(mbox); // closes the mbox
+
+        // Restore the default group so the About menu can be navigated again
+        lv_group_t *group = find_group_in_parent(lv_scr_act());
+        if (group != NULL) {
+            lv_group_set_default(group);
+        }
+
         lvgl_port_unlock();
     }, LV_EVENT_CLICKED, mbox);
+    btn = lv_msgbox_add_footer_button(mbox, "Reset");
+    lv_group_add_obj(group, btn);
+    lv_obj_add_style(btn, &settings->focusedButtonStyle, LV_STATE_FOCUSED);
+    lv_obj_set_user_data(btn, mbox);
+    lv_obj_set_style_bg_color(btn, lv_palette_main(LV_PALETTE_RED), 0);
+    lv_obj_add_event_cb(btn, handleFactoryResetChickenOutConfirmed, LV_EVENT_CLICKED, settings);
 
     lv_obj_center(mbox);
 
@@ -1264,4 +1452,29 @@ static void handleBackButtonClicked(lv_event_t *e) {
     lvgl_port_unlock();
     settings->saveSettings(); // TODO: Figure out a better way of doing this than saving every time
     settings->removeCurrentMenu();
+}
+
+void UserSettings::footswitchPressed(FootswitchPress press) {
+    switch (press) {
+    case footswitchSinglePress:
+        ESP_LOGI(TAG, "Settings: Single press");
+        advanceToNextButton();
+        break;
+    case footswitchDoublePress:
+        ESP_LOGI(TAG, "Settings: Double press");
+        pressFocusedButton();
+        break;
+    case footswitchLongPress:
+        ESP_LOGI(TAG, "Settings: Long press");
+        if (screenStack.size() > 2) {
+            ESP_LOGI(TAG, "0");
+            saveSettings();
+            removeCurrentMenu();
+        } else {
+            ESP_LOGI(TAG, "1");
+            // saveSettings();
+            tunerController->setState(tunerStateTuning);
+        }
+        break;
+    }
 }
