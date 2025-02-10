@@ -33,7 +33,7 @@
 #include <q/pitch/pitch_detector.hpp>
 #include <q/fx/dynamic.hpp>
 #include <q/fx/clip.hpp>
-// #include <q/fx/signal_conditioner.hpp>
+#include <q/fx/signal_conditioner.hpp>
 #include <q/support/decibel.hpp>
 #include <q/support/duration.hpp>
 #include <q/support/literals.hpp>
@@ -46,6 +46,7 @@
 #include "exponential_smoother.hpp"
 #include "OneEuroFilter.h"
 // #include "MovingAverage.hpp"
+#include "MedianFilter.hpp"
 
 static const char *TAG = "PitchDetector";
 
@@ -69,6 +70,8 @@ static const double dcutoff = EU_FILTER_DERIVATIVE_CUTOFF;
 ExponentialSmoother smoother(DEFAULT_EXP_SMOOTHING);
 OneEuroFilter oneEUFilter(euFilterFreq, mincutoff, DEFAULT_ONE_EU_BETA, dcutoff);
 // MovingAverage movingAverage(DEFAULT_MOVING_AVG_WINDOW);
+// MedianFilter medianMovingFilter(3, true);
+MedianFilter medianFilter(5, false);
 
 extern UserSettings *userSettings;
 
@@ -162,8 +165,8 @@ void pitch_detector_task(void *pvParameter) {
     // float                       release_threshold = lin_float(-60_dB);
     // float                       threshold = onset_threshold;
 
-    // auto sc_conf = q::signal_conditioner::config{};
-    // auto sig_cond = q::signal_conditioner{sc_conf, low_fs, high_fs, TUNER_ADC_SAMPLE_RATE};
+    auto sc_conf = q::signal_conditioner::config{};
+    auto sig_cond = q::signal_conditioner{sc_conf, low_fs, high_fs, TUNER_ADC_SAMPLE_RATE};
 
     s_task_handle = xTaskGetCurrentTaskHandle();
     
@@ -232,6 +235,8 @@ void pitch_detector_task(void *pvParameter) {
                     oneEUFilter.reset(); // Reset the 1EU filter so the next frequency it detects will be as fast as possible
                     smoother.reset();
                     // movingAverage.reset();
+                    // medianMovingFilter.reset();
+                    medianFilter.reset();
                     pd.reset();
                     vTaskDelay(10 / portTICK_PERIOD_MS); // Should be 10ms?
                     continue;
@@ -251,14 +256,16 @@ void pitch_detector_task(void *pvParameter) {
                     // ESP_LOGI("norm-val", "%f is now %f", in[i], normalizedValue);
                     in[i] = normalizedValue;
 
-                    auto s = in[i]; // input signal
+                    float s = in[i]; // input signal
+
+                    // s = medianMovingFilter.addValue(s);
 
                     // I've got the signal conditioning commented out right now
                     // because it actually is making the frequency readings
                     // NOT work. They probably just need to be tweaked a little.
 
                     // Signal Conditioner
-                    // s = sig_cond(s);
+                    s = sig_cond(s);
 
                     // // Bandpass filter
                     // s = lp(s);
@@ -307,7 +314,12 @@ void pitch_detector_task(void *pvParameter) {
                         // Moving average (makes it BAD!)
                         // f = movingAverage.addValue(f);
                         f = f / WEIRD_ESP32_WROOM_32_FREQ_FIX_FACTOR; // Use the weird factor only on ESP32-WROOM-32 (which the CYD is)
-                        set_current_frequency(f);
+
+                        // Median Filter
+                        f = medianFilter.addValue(f);
+                        if (f != -1.0f) {
+                            set_current_frequency(f);
+                        }
                     }
                 }
 
