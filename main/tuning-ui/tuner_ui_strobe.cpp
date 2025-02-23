@@ -77,6 +77,7 @@ lv_obj_t *strobe_arc2;
 lv_obj_t *strobe_arc3;
 
 float strobe_rotation_current_pos = 0;
+float amount_to_rotate = 0;
 
 lv_anim_t *strobe_last_note_anim = NULL;
 
@@ -124,6 +125,8 @@ void strobe_gui_display_frequency(float frequency, TunerNoteName note_name, floa
 
         lv_label_set_text_fmt(strobe_cents_label, "%.1f", cents);
         lv_obj_clear_flag(strobe_cents_label, LV_OBJ_FLAG_HIDDEN);
+
+        amount_to_rotate = cents / 2; // Dividing the cents in half for the amount of rotation seems to feel about right
     } else {
         // Hide the pitch and indicators since it's not detected
         if (strobe_last_displayed_note != NOTE_NONE) {
@@ -131,15 +134,13 @@ void strobe_gui_display_frequency(float frequency, TunerNoteName note_name, floa
             strobe_last_displayed_note = NOTE_NONE;
         }
 
-        // Hide the strobe arcs, frequency, and cents labels
-        lv_obj_add_flag(strobe_arc_container, LV_OBJ_FLAG_HIDDEN);
+        // Hide the frequency, and cents labels
         lv_obj_add_flag(strobe_cents_label, LV_OBJ_FLAG_HIDDEN);
         lv_obj_add_flag(strobe_frequency_label, LV_OBJ_FLAG_HIDDEN);
     }
 
-    float amount_to_rotate = cents / 2; // Dividing the cents in half for the amount of rotation seems to feel about right
     if (amount_to_rotate != 0) {
-        strobe_rotation_current_pos += cents; // This will make the strobe rotate left or right depending on how off the tuning is
+        strobe_rotation_current_pos += amount_to_rotate; // This will make the strobe rotate left or right depending on how off the tuning is
         lv_arc_set_rotation(strobe_arc1, strobe_rotation_current_pos);
         lv_arc_set_rotation(strobe_arc2, strobe_rotation_current_pos + 120); // 1/3 of a circle ahead
         lv_arc_set_rotation(strobe_arc3, strobe_rotation_current_pos + 240); // 2/3 of a circle ahead
@@ -162,7 +163,8 @@ void strobe_create_labels(lv_obj_t * parent) {
     lv_obj_set_style_bg_opa(strobe_note_img_container, LV_OPA_0, 0);
     lv_obj_set_style_border_width(strobe_note_img_container, 0, 0);
     lv_obj_set_scrollbar_mode(strobe_note_img_container, LV_SCROLLBAR_MODE_OFF);
-    lv_obj_center(strobe_note_img_container);
+    lv_obj_align(strobe_note_img_container, LV_ALIGN_CENTER, 0, 0);
+    // lv_obj_center(strobe_note_img_container);
 
     // Note Name Image (the big name in the middle of the screen)
     strobe_note_img = lv_image_create(strobe_note_img_container);
@@ -257,6 +259,9 @@ void strobe_create_arcs(lv_obj_t * parent) {
     lv_obj_set_style_arc_opa(strobe_arc1, LV_OPA_0, 0);
     lv_obj_set_style_arc_opa(strobe_arc2, LV_OPA_0, 0);
     lv_obj_set_style_arc_opa(strobe_arc3, LV_OPA_0, 0);
+
+    // Hide the strobe arcs
+    lv_obj_add_flag(strobe_arc_container, LV_OBJ_FLAG_HIDDEN);
 }
 
 void strobe_update_note_name(TunerNoteName new_value) {
@@ -360,6 +365,9 @@ void strobe_last_note_anim_completed_cb(lv_anim_t *) {
     lv_obj_add_flag(strobe_sharp_img, LV_OBJ_FLAG_HIDDEN);
     lv_image_set_src(strobe_note_img, &tuner_font_image_none);
     strobe_last_displayed_note = NOTE_NONE;
+
+    // Hide the strobe arcs
+    lv_obj_add_flag(strobe_arc_container, LV_OBJ_FLAG_HIDDEN);
 
     strobe_stop_note_fade_animation();
 
