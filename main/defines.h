@@ -89,8 +89,7 @@
 // the frequency. This should help cut down on the noise from the
 // OLED and only attempt to read frequency information when an
 // actual input signal is being read.
-// #define TUNER_READING_DIFF_MINIMUM      400 // TODO: Convert this into a debug setting
-#define TUNER_READING_DIFF_MINIMUM      300 // TODO: Convert this into a debug setting
+#define TUNER_READING_DIFF_MINIMUM      120 // approximately 120mV
 
 //
 // Smoothing

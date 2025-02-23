@@ -74,6 +74,7 @@ lv_obj_t *needle_cents_label;
 lv_style_t needle_cents_label_style;
 
 lv_obj_t *needle_pitch_indicator_bar;
+lv_obj_t *center_target;
 
 lv_anim_t *needle_last_note_anim = NULL;
 
@@ -125,6 +126,7 @@ void needle_gui_display_frequency(float frequency, TunerNoteName note_name, floa
 
         lv_label_set_text_fmt(needle_cents_label, "%.1f", cents);
         lv_obj_clear_flag(needle_cents_label, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_clear_flag(center_target, LV_OBJ_FLAG_HIDDEN);
 
         lv_anim_start(&needle_pitch_animation);
     } else {
@@ -134,8 +136,7 @@ void needle_gui_display_frequency(float frequency, TunerNoteName note_name, floa
             needle_last_displayed_note = NOTE_NONE;
         }
 
-        // Hide the indicator bar, frequency, and cents labels
-        lv_obj_add_flag(needle_pitch_indicator_bar, LV_OBJ_FLAG_HIDDEN);
+        // Hide the frequency and cents labels
         lv_obj_add_flag(needle_cents_label, LV_OBJ_FLAG_HIDDEN);
         lv_obj_add_flag(needle_frequency_label, LV_OBJ_FLAG_HIDDEN);
     }
@@ -154,7 +155,7 @@ void needle_create_ruler(lv_obj_t * parent) {
     const int short_height = 20;     // Height of shorter side lines
     const int num_lines_side = 14;   // Number of lines on each side of the center
 
-    const int cents_container_height = ruler_height + 28;
+    const int cents_container_height = ruler_height;
 
     // Cents Label (shown right under the pitch indicator bar)
     lv_obj_t * cents_container = lv_obj_create(parent);
@@ -184,13 +185,22 @@ void needle_create_ruler(lv_obj_t * parent) {
     lv_obj_set_style_bg_color(ruler_container, lv_color_hex(0x000000), 0);
     lv_obj_set_style_bg_opa(ruler_container, LV_OPA_COVER, 0);
     lv_obj_align(ruler_container, LV_ALIGN_TOP_MID, 0, 0);
+    lv_obj_align_to(cents_container, ruler_container, LV_ALIGN_BOTTOM_MID, 0, cents_container_height);
 
     // Center line
     lv_obj_t * center_line = lv_obj_create(ruler_container);
     lv_obj_set_size(center_line, ruler_line_width, center_height);
-    lv_obj_set_style_bg_color(center_line, lv_color_hex(0x777777), 0);
+    lv_obj_set_style_bg_color(center_line, lv_color_hex(0xCCCCCC), 0);
     lv_obj_set_style_bg_opa(center_line, LV_OPA_COVER, 0);
     lv_obj_align(center_line, LV_ALIGN_CENTER, 0, 0);
+
+    // Center target
+    lv_palette_t note_color = userSettings->noteNamePalette;
+    center_target = lv_image_create(cents_container);
+    lv_image_set_src(center_target, LV_SYMBOL_UP); // TODO: change this to a label
+    lv_obj_set_style_img_recolor(center_target, lv_palette_main(note_color), 0);
+    lv_obj_align(center_target, LV_ALIGN_TOP_MID, 0, -6);
+    lv_obj_add_flag(center_target, LV_OBJ_FLAG_HIDDEN);
 
     // Lines on the left and right sides
     for (int i = 1; i <= num_lines_side; i++) {
@@ -201,14 +211,14 @@ void needle_create_ruler(lv_obj_t * parent) {
         // Left side line
         lv_obj_t * left_line = lv_obj_create(ruler_container);
         lv_obj_set_size(left_line, ruler_line_width, line_height);
-        lv_obj_set_style_bg_color(left_line, lv_color_hex(is_tall_height ? 0x777777 : 0x333333), 0);
+        lv_obj_set_style_bg_color(left_line, lv_color_hex(is_tall_height ? 0xCCCCCC : 0x999999), 0);
         lv_obj_set_style_bg_opa(left_line, LV_OPA_COVER, 0);
         lv_obj_align(left_line, LV_ALIGN_CENTER, -(spacer_width + 2) * i, 0);
 
         // Right side line
         lv_obj_t * right_line = lv_obj_create(ruler_container);
         lv_obj_set_size(right_line, ruler_line_width, line_height);
-        lv_obj_set_style_bg_color(right_line, lv_color_hex(is_tall_height ? 0x777777 : 0x333333), 0);
+        lv_obj_set_style_bg_color(right_line, lv_color_hex(is_tall_height ? 0xCCCCCC : 0x999999), 0);
         lv_obj_set_style_bg_opa(right_line, LV_OPA_COVER, 0);
         lv_obj_align(right_line, LV_ALIGN_CENTER, (spacer_width + 2) * i, 0);
     }
@@ -224,7 +234,10 @@ void needle_create_ruler(lv_obj_t * parent) {
     lv_obj_align(rect, LV_ALIGN_CENTER, 0, 0);
 
     // Set the rectangle's style (optional)
-    lv_obj_set_style_bg_color(rect, lv_color_hex(0xFF0000), LV_PART_MAIN);
+    // lv_obj_set_style_bg_color(rect, lv_color_hex(0xFF0000), LV_PART_MAIN);
+
+    // Use the note color for the pitch indicator bar
+    lv_obj_set_style_bg_color(rect, lv_palette_main(note_color), 0);
 
     needle_pitch_indicator_bar = rect;
 
@@ -384,6 +397,10 @@ void needle_last_note_anim_completed_cb(lv_anim_t *) {
     lv_obj_add_flag(needle_sharp_img, LV_OBJ_FLAG_HIDDEN);
     lv_image_set_src(needle_note_img, &tuner_font_image_none);
     needle_last_displayed_note = NOTE_NONE;
+
+    // Hide the pitch indicator bar
+    lv_obj_add_flag(needle_pitch_indicator_bar, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_flag(center_target, LV_OBJ_FLAG_HIDDEN);
 
     needle_stop_note_fade_animation();
 
