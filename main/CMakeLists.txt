@@ -14,6 +14,7 @@ set(SRCS
 
     standby-ui/standby_ui_blank.cpp
 
+    tuning-ui/tuner_ui_attitude.cpp
     tuning-ui/tuner_ui_needle.cpp
     tuning-ui/tuner_ui_strobe.cpp
 
