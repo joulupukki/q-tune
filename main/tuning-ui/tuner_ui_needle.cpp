@@ -169,7 +169,7 @@ void needle_create_ruler(lv_obj_t * parent) {
     needle_cents_label = lv_label_create(cents_container);
     
     lv_style_init(&needle_cents_label_style);
-    lv_style_set_text_font(&needle_cents_label_style, &lv_font_montserrat_14);
+    lv_style_set_text_font(&needle_cents_label_style, &lv_font_montserrat_18);
     lv_obj_add_style(needle_cents_label, &needle_cents_label_style, 0);
 
     lv_obj_set_width(needle_cents_label, screen_width / 2);
@@ -292,7 +292,7 @@ void needle_create_labels(lv_obj_t * parent) {
     lv_obj_align(needle_frequency_label, LV_ALIGN_BOTTOM_RIGHT, 0, 0);
 
     lv_style_init(&needle_frequency_label_style);
-    lv_style_set_text_font(&needle_frequency_label_style, &lv_font_montserrat_14);
+    lv_style_set_text_font(&needle_frequency_label_style, &lv_font_montserrat_18);
     lv_obj_add_style(needle_frequency_label, &needle_frequency_label_style, 0);
 }
 

@@ -14,6 +14,7 @@ set(SRCS
 
     standby-ui/standby_ui_blank.cpp
 
+    tuning-ui/tuner_ui_attitude.cpp
     tuning-ui/tuner_ui_needle.cpp
     tuning-ui/tuner_ui_strobe.cpp
 
@@ -37,3 +38,4 @@ idf_component_register(
 )
 
 target_include_directories(${COMPONENT_LIB} PRIVATE ${CMAKE_SOURCE_DIR}/extra_components/q/q_lib/include ${CMAKE_SOURCE_DIR}/extra_components/q/infra/include)
+add_compile_definitions(PROJECT_VERSION="${PROJECT_VER}")

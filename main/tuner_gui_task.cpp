@@ -35,6 +35,7 @@
 //
 // These are the tuner UIs available.
 //
+#include "tuner_ui_attitude.h"
 #include "tuner_ui_needle.h"
 #include "tuner_ui_strobe.h"
 
@@ -140,6 +141,14 @@ TunerGUIInterface strobe_gui = {
     .cleanup = strobe_gui_cleanup
 };
 
+TunerGUIInterface attitude_gui = {
+    .get_id = attitude_gui_get_id,
+    .get_name = attitude_gui_get_name,
+    .init = attitude_gui_init,
+    .display_frequency = attitude_gui_display_frequency,
+    .cleanup = attitude_gui_cleanup
+};
+
 TunerGUIInterface available_guis[] = {
 
     // IMPORTANT: Make sure you update `num_of_available_guis` below so any new
@@ -147,9 +156,10 @@ TunerGUIInterface available_guis[] = {
     
     needle_gui, // ID = 0
     strobe_gui,
+    attitude_gui,
 };
 
-size_t num_of_available_guis = 2;
+size_t num_of_available_guis = 3;
 
 TunerStandbyGUIInterface *active_standby_gui = NULL;
 TunerGUIInterface *active_gui = NULL;
@@ -322,7 +332,7 @@ void create_tuning_ui() {
     get_active_gui().init(main_screen);
 
     // Place the settings button on the UI (bottom left)
-    create_settings_menu_button(main_screen);
+    // create_settings_menu_button(main_screen);
 }
 
 void create_settings_ui() {
@@ -383,6 +393,10 @@ static esp_err_t app_lvgl_main() {
     lv_obj_set_style_bg_color(scr, lv_color_black(), LV_PART_MAIN);
     lv_obj_set_scrollbar_mode(scr, LV_SCROLLBAR_MODE_OFF);
     main_screen = scr;
+
+    // Prevent scrolling on the main screen so the UI doesn't move around if
+    // objects are placed outside of the bounds of the screen.
+    lv_obj_set_scroll_dir(main_screen, LV_DIR_NONE);
 
 //    create_tuning_ui();
 

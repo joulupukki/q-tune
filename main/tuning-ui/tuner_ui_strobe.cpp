@@ -77,7 +77,7 @@ lv_obj_t *strobe_arc2;
 lv_obj_t *strobe_arc3;
 
 float strobe_rotation_current_pos = 0;
-float amount_to_rotate = 0;
+float strobe_amount_to_rotate = 0;
 
 lv_anim_t *strobe_last_note_anim = NULL;
 
@@ -106,27 +106,13 @@ void strobe_gui_display_frequency(float frequency, TunerNoteName note_name, floa
             strobe_last_displayed_note = note_name; // prevent setting this so often to help prevent an LVGL crash
         }
 
-        // Calculate where the indicator bar should be left-to right based on the cents
-        lv_coord_t indicator_x_pos = (lv_coord_t)0.0;
-
-        if (abs(cents) <= userSettings->inTuneCentsWidth / 2) {
-            // Show this as perfectly in tune
-            indicator_x_pos = 0;
-        } else {
-            float segment_width_cents = CENTS_PER_SEMITONE / INDICATOR_SEGMENTS; // TODO: Make this a static var
-            int segment_index = cents / segment_width_cents;
-
-            float segment_width_pixels = screen_width / INDICATOR_SEGMENTS;
-            indicator_x_pos = segment_index * segment_width_pixels; 
-        }
-
         // Make the strobe arcs show up
         lv_obj_clear_flag(strobe_arc_container, LV_OBJ_FLAG_HIDDEN);
 
         lv_label_set_text_fmt(strobe_cents_label, "%.1f", cents);
         lv_obj_clear_flag(strobe_cents_label, LV_OBJ_FLAG_HIDDEN);
 
-        amount_to_rotate = cents / 2; // Dividing the cents in half for the amount of rotation seems to feel about right
+        strobe_amount_to_rotate = cents / 2; // Dividing the cents in half for the amount of rotation seems to feel about right
     } else {
         // Hide the pitch and indicators since it's not detected
         if (strobe_last_displayed_note != NOTE_NONE) {
@@ -139,8 +125,8 @@ void strobe_gui_display_frequency(float frequency, TunerNoteName note_name, floa
         lv_obj_add_flag(strobe_frequency_label, LV_OBJ_FLAG_HIDDEN);
     }
 
-    if (amount_to_rotate != 0) {
-        strobe_rotation_current_pos += amount_to_rotate; // This will make the strobe rotate left or right depending on how off the tuning is
+    if (strobe_amount_to_rotate != 0) {
+        strobe_rotation_current_pos += strobe_amount_to_rotate; // This will make the strobe rotate left or right depending on how off the tuning is
         lv_arc_set_rotation(strobe_arc1, strobe_rotation_current_pos);
         lv_arc_set_rotation(strobe_arc2, strobe_rotation_current_pos + 120); // 1/3 of a circle ahead
         lv_arc_set_rotation(strobe_arc3, strobe_rotation_current_pos + 240); // 2/3 of a circle ahead
@@ -198,7 +184,7 @@ void strobe_create_labels(lv_obj_t * parent) {
     lv_obj_align(strobe_frequency_label, LV_ALIGN_BOTTOM_RIGHT, 0, 0);
 
     lv_style_init(&strobe_frequency_label_style);
-    lv_style_set_text_font(&strobe_frequency_label_style, &lv_font_montserrat_14);
+    lv_style_set_text_font(&strobe_frequency_label_style, &lv_font_montserrat_18);
     lv_obj_add_style(strobe_frequency_label, &strobe_frequency_label_style, 0);
     lv_obj_add_flag(strobe_frequency_label, LV_OBJ_FLAG_HIDDEN);
 
@@ -206,7 +192,7 @@ void strobe_create_labels(lv_obj_t * parent) {
     strobe_cents_label = lv_label_create(parent);
     
     lv_style_init(&strobe_cents_label_style);
-    lv_style_set_text_font(&strobe_cents_label_style, &lv_font_montserrat_14);
+    lv_style_set_text_font(&strobe_cents_label_style, &lv_font_montserrat_18);
     lv_obj_add_style(strobe_cents_label, &strobe_cents_label_style, 0);
 
     lv_obj_set_width(strobe_cents_label, screen_width / 2);
