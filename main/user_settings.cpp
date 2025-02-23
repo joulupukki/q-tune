@@ -27,6 +27,10 @@ extern TunerController *tunerController;
 extern TunerGUIInterface available_guis[1]; // defined in tuner_gui_task.cpp
 extern size_t num_of_available_guis;
 
+#ifndef PROJECT_VERSION
+#define PROJECT_VERSION "0.0.1"
+#endif
+
 #define MENU_BTN_TUNER              "Tuner"
 #define MENU_BTN_TUNER_MODE         "Mode"
 #define MENU_BTN_IN_TUNE_THRESHOLD  "In-Tune Threshold"
@@ -1368,8 +1372,10 @@ static void handleAboutButtonClicked(lv_event_t *e) {
     }
     settings = (UserSettings *)lv_obj_get_user_data((lv_obj_t *)lv_event_get_target(e));
     lvgl_port_unlock();
+    static char versionString[32];
+    sprintf(versionString, "Version %s", PROJECT_VERSION);
     const char *buttonNames[] = {
-        "Version 0.0.1", // TODO: Grab the version from somewhere else
+        versionString,
         MENU_BTN_FACTORY_RESET,
     };
     lv_event_cb_t callbackFunctions[] = {

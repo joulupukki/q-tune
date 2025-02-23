@@ -37,3 +37,4 @@ idf_component_register(
 )
 
 target_include_directories(${COMPONENT_LIB} PRIVATE ${CMAKE_SOURCE_DIR}/extra_components/q/q_lib/include ${CMAKE_SOURCE_DIR}/extra_components/q/infra/include)
+add_compile_definitions(PROJECT_VERSION="${PROJECT_VER}")
