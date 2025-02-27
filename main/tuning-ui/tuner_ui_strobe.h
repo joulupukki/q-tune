@@ -25,7 +25,7 @@
 uint8_t strobe_gui_get_id();
 const char * strobe_gui_get_name();
 void strobe_gui_init(lv_obj_t *screen);
-void strobe_gui_display_frequency(float frequency, TunerNoteName note_name, float cents);
+void strobe_gui_display_frequency(float frequency, TunerNoteName note_name, float cents, bool show_mute_indicator);
 void strobe_gui_cleanup();
 
 #endif

@@ -66,6 +66,7 @@ lv_obj_t *strobe_note_img_container;
 lv_obj_t *strobe_note_img;
 lv_obj_t *strobe_sharp_img;
 
+lv_obj_t *strobe_mute_label;
 lv_obj_t *strobe_frequency_label;
 lv_style_t strobe_frequency_label_style;
 lv_obj_t *strobe_cents_label;
@@ -95,7 +96,7 @@ void strobe_gui_init(lv_obj_t *screen) {
     strobe_create_arcs(screen);
 }
 
-void strobe_gui_display_frequency(float frequency, TunerNoteName note_name, float cents) {
+void strobe_gui_display_frequency(float frequency, TunerNoteName note_name, float cents, bool show_mute_indicator) {
     if (note_name < 0) { return; } // Strangely I'm sometimes seeing negative values. No idea how.
     if (note_name != NOTE_NONE) {
         lv_label_set_text_fmt(strobe_frequency_label, "%.2f", frequency);
@@ -135,6 +136,12 @@ void strobe_gui_display_frequency(float frequency, TunerNoteName note_name, floa
         // stable by yielding for just a teeny amount.
         vTaskDelay(1);
     }
+
+    if (show_mute_indicator) {
+        lv_obj_clear_flag(strobe_mute_label, LV_OBJ_FLAG_HIDDEN);
+    } else {
+        lv_obj_add_flag(strobe_mute_label, LV_OBJ_FLAG_HIDDEN);
+    }
 }
 
 void strobe_gui_cleanup() {
@@ -149,6 +156,7 @@ void strobe_create_labels(lv_obj_t * parent) {
     lv_obj_set_style_bg_opa(strobe_note_img_container, LV_OPA_0, 0);
     lv_obj_set_style_border_width(strobe_note_img_container, 0, 0);
     lv_obj_set_scrollbar_mode(strobe_note_img_container, LV_SCROLLBAR_MODE_OFF);
+    lv_obj_set_scroll_dir(strobe_note_img_container, LV_DIR_NONE);
     lv_obj_align(strobe_note_img_container, LV_ALIGN_CENTER, 0, 0);
     // lv_obj_center(strobe_note_img_container);
 
@@ -173,6 +181,13 @@ void strobe_create_labels(lv_obj_t * parent) {
         lv_obj_set_style_img_recolor(strobe_note_img, lv_palette_main(palette), 0);
         lv_obj_set_style_img_recolor(strobe_sharp_img, lv_palette_main(palette), 0);
     }
+
+    // MUTE label (for monitoring mode)
+    strobe_mute_label = lv_label_create(parent);
+    lv_label_set_text_static(strobe_mute_label, "MUTE");
+    lv_obj_set_style_text_font(strobe_mute_label, &lv_font_montserrat_18, 0);
+    lv_obj_align(strobe_mute_label, LV_ALIGN_TOP_LEFT, 2, 0);
+    lv_obj_add_flag(strobe_mute_label, LV_OBJ_FLAG_HIDDEN);
 
     // Frequency Label (very bottom)
     strobe_frequency_label = lv_label_create(parent);

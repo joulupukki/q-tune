@@ -68,6 +68,7 @@ lv_obj_t *needle_sharp_img;
 lv_anim_t needle_pitch_animation;
 lv_coord_t needle_last_pitch_indicator_pos = (lv_coord_t)0.0;
 
+lv_obj_t *needle_mute_label;
 lv_obj_t *needle_frequency_label;
 lv_style_t needle_frequency_label_style;
 lv_obj_t *needle_cents_label;
@@ -93,7 +94,7 @@ void needle_gui_init(lv_obj_t *screen) {
     needle_create_labels(screen);
 }
 
-void needle_gui_display_frequency(float frequency, TunerNoteName note_name, float cents) {
+void needle_gui_display_frequency(float frequency, TunerNoteName note_name, float cents, bool show_mute_indicator) {
     if (note_name < 0) { return; } // Strangely I'm sometimes seeing negative values. No idea how.
     if (note_name != NOTE_NONE) {
         lv_label_set_text_fmt(needle_frequency_label, "%.2f", frequency);
@@ -140,6 +141,12 @@ void needle_gui_display_frequency(float frequency, TunerNoteName note_name, floa
         lv_obj_add_flag(needle_cents_label, LV_OBJ_FLAG_HIDDEN);
         lv_obj_add_flag(needle_frequency_label, LV_OBJ_FLAG_HIDDEN);
     }
+
+    if (show_mute_indicator) {
+        lv_obj_clear_flag(needle_mute_label, LV_OBJ_FLAG_HIDDEN);
+    } else {
+        lv_obj_add_flag(needle_mute_label, LV_OBJ_FLAG_HIDDEN);
+    }
 }
 
 void needle_gui_cleanup() {
@@ -174,7 +181,7 @@ void needle_create_ruler(lv_obj_t * parent) {
 
     lv_obj_set_width(needle_cents_label, screen_width / 2);
     lv_obj_set_style_text_align(needle_cents_label, LV_TEXT_ALIGN_CENTER, 0);
-    lv_obj_align(needle_cents_label, LV_ALIGN_BOTTOM_MID, 0, 0);
+    lv_obj_align(needle_cents_label, LV_ALIGN_BOTTOM_MID, 0, 6);
     lv_obj_add_flag(needle_cents_label, LV_OBJ_FLAG_HIDDEN);
 
     // Create a container for the ruler
@@ -281,6 +288,13 @@ void needle_create_labels(lv_obj_t * parent) {
         lv_obj_set_style_img_recolor(needle_note_img, lv_palette_main(palette), 0);
         lv_obj_set_style_img_recolor(needle_sharp_img, lv_palette_main(palette), 0);
     }
+
+    // MUTE label (for monitoring mode)
+    needle_mute_label = lv_label_create(parent);
+    lv_label_set_text_static(needle_mute_label, "MUTE");
+    lv_obj_set_style_text_font(needle_mute_label, &lv_font_montserrat_18, 0);
+    lv_obj_align(needle_mute_label, LV_ALIGN_BOTTOM_LEFT, 2, 0);
+    lv_obj_add_flag(needle_mute_label, LV_OBJ_FLAG_HIDDEN);
 
     // Frequency Label (very bottom)
     needle_frequency_label = lv_label_create(parent);

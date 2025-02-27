@@ -25,7 +25,7 @@
 uint8_t attitude_gui_get_id();
 const char * attitude_gui_get_name();
 void attitude_gui_init(lv_obj_t *screen);
-void attitude_gui_display_frequency(float frequency, TunerNoteName note_name, float cents);
+void attitude_gui_display_frequency(float frequency, TunerNoteName note_name, float cents, bool show_mute_indicator);
 void attitude_gui_cleanup();
 
 #endif

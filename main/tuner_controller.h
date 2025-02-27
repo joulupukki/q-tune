@@ -23,8 +23,8 @@
 
 enum TunerState: uint8_t {
     tunerStateBooting = 0,
-    tunerStateStandby,      // Standby (muted or monitored)
-    tunerStateTuning,       // Actively tuning
+    tunerStateStandby,      // Standby
+    tunerStateTuning,       // Actively tuning (or monitored mode)
     tunerStateSettings,     // User settings are showing
 };
 
