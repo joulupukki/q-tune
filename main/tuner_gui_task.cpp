@@ -238,14 +238,16 @@ void tuner_gui_task(void *pvParameter) {
             old_tuner_ui_state = current_ui_tuner_state;
         }
 
-        if (current_ui_tuner_state == tunerStateTuning && lvgl_port_lock(0)) {
+        bool monitoring_mode = userSettings->monitoringMode && current_ui_tuner_state == tunerStateStandby;
+        if ((monitoring_mode || current_ui_tuner_state == tunerStateTuning) && lvgl_port_lock(0)) {
+            bool show_mute_indicator = current_ui_tuner_state == tunerStateTuning;
             float frequency = get_current_frequency();
             if (frequency > 0) {
                 TunerNoteName note_name = get_pitch_name_and_cents_from_frequency(frequency, &cents);
                 // ESP_LOGI(TAG, "%s - %d", noteName, cents);
-                get_active_gui().display_frequency(frequency, note_name, cents);
+                get_active_gui().display_frequency(frequency, note_name, cents, show_mute_indicator);
             } else {
-                get_active_gui().display_frequency(0, NOTE_NONE, 0);
+                get_active_gui().display_frequency(0, NOTE_NONE, 0, show_mute_indicator);
             }
             // Release the mutex
             lvgl_port_unlock();
@@ -271,10 +273,14 @@ void update_ui(TunerState old_state, TunerState new_state) {
     case tunerStateStandby:
         // TODO: Maybe look at setting the brightness to 0? Maybe set this up
         // as something that can be specified by the active standby interface.
-        get_active_standby_gui().cleanup();
+        if (!userSettings->monitoringMode) {
+            get_active_standby_gui().cleanup();
+        }
         break;
     case tunerStateTuning:
-        get_active_gui().cleanup();
+        if (!userSettings->monitoringMode) {
+            get_active_gui().cleanup();
+        }
         break;
     default:
         break;
@@ -282,7 +288,9 @@ void update_ui(TunerState old_state, TunerState new_state) {
 
     // Clean up any left-over LVGL objects on the main screen before loading the
     // next UI.
-    lv_obj_clean(main_screen);
+    if ((userSettings->monitoringMode && old_state == tunerStateSettings) || !userSettings->monitoringMode) {
+        lv_obj_clean(main_screen);
+    }
 
     // Load the new UI
     switch (new_state) {
@@ -290,10 +298,17 @@ void update_ui(TunerState old_state, TunerState new_state) {
         create_settings_ui();
         break;
     case tunerStateStandby:
-        lcd_display_brightness_set(0.0); // Turn off the display
-        create_standby_ui();
+        if (!userSettings->monitoringMode) {
+            lcd_display_brightness_set(0.0); // Turn off the display
+            create_standby_ui();
+        }
         break;
     case tunerStateTuning:
+        // If monitoring is enabled, only create the tuning UI if the previous
+        // state was not standby.
+        if (userSettings->monitoringMode && old_state == tunerStateStandby) {
+            break; // Nothing to do because the tuning UI is already showing
+        }
         lcd_display_brightness_set(userSettings->displayBrightness * 10 + 10); // Turn the display back on
         create_tuning_ui();
         break;

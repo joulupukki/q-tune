@@ -90,6 +90,7 @@ public:
     uint8_t             standbyGUIIndex         = DEFAULT_STANDBY_GUI_INDEX;
     uint8_t             tunerGUIIndex           = DEFAULT_TUNER_GUI_INDEX; // The ID is also the index in the `available_guis` array.
     uint8_t             inTuneCentsWidth        = DEFAULT_IN_TUNE_CENTS_WIDTH;
+    uint8_t             monitoringMode          = DEFAULT_MONITORING_MODE;
     lv_palette_t        noteNamePalette         = DEFAULT_NOTE_NAME_PALETTE;
     TunerOrientation    displayOrientation      = DEFAULT_DISPLAY_ORIENTATION;
     uint8_t             displayBrightness       = DEFAULT_DISPLAY_BRIGHTNESS;

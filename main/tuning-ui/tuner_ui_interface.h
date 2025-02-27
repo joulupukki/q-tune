@@ -47,7 +47,12 @@ typedef struct {
     void (*init)(lv_obj_t *screen);
     
     /// @brief Display the frequency/note/cents/etc.
-    void (*display_frequency)(float frequency, TunerNoteName note_name, float cents);
+    /// @param frequency The frequency in Hz.
+    /// @param note_name The note name (e.g. A, B, C, etc.).
+    /// @param cents The number of cents off from the note (e.g. -50, 0, 50).
+    /// @param show_mute_indicator True if the tuner is in tuning mode and
+    /// should show the mute indicator (because of monitoring mode).
+    void (*display_frequency)(float frequency, TunerNoteName note_name, float cents, bool show_mute_indicator);
 
     /// @brief Perform any cleanup needed (this UI is being deactivated).
     ///

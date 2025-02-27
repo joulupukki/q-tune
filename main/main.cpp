@@ -66,7 +66,9 @@ void tuner_state_did_change_cb(TunerState old_state, TunerState new_state) {
         vTaskSuspend(detectorTaskHandle);
         break;
     case tunerStateStandby:
-        vTaskSuspend(detectorTaskHandle);
+        if (!userSettings->monitoringMode) {
+            vTaskSuspend(detectorTaskHandle);
+        }
         break;
     case tunerStateTuning:
         vTaskResume(detectorTaskHandle);

@@ -32,8 +32,11 @@ extern size_t num_of_available_guis;
 #endif
 
 #define MENU_BTN_TUNER              "Tuner"
-#define MENU_BTN_TUNER_MODE         "Mode"
-#define MENU_BTN_IN_TUNE_THRESHOLD  "In-Tune Threshold"
+    #define MENU_BTN_TUNER_MODE         "Mode"
+    #define MENU_BTN_IN_TUNE_THRESHOLD  "In-Tune Threshold"
+    #define MENU_BTN_MONITORING_MODE    "Monitoring Mode"
+        #define MENU_BTN_MONITORING_OFF      "Off"
+        #define MENU_BTN_MONITORING_ON       "On"
 
 #define MENU_BTN_DISPLAY            "Display"
     #define MENU_BTN_BRIGHTNESS         "Brightness"
@@ -65,6 +68,7 @@ extern size_t num_of_available_guis;
 #define SETTING_STANDBY_GUI_INDEX           "standby_gui_idx"
 #define SETTING_TUNER_GUI_INDEX             "tuner_gui_index"
 #define SETTING_KEY_IN_TUNE_WIDTH           "in_tune_width"
+#define SETTING_KEY_MONITORING_MODE         "monitoring_mode"
 #define SETTING_KEY_NOTE_NAME_PALETTE       "note_nm_palette"
 #define SETTING_KEY_DISPLAY_ORIENTATION     "display_orient"
 #define SETTING_KEY_EXP_SMOOTHING           "exp_smoothing"
@@ -111,7 +115,9 @@ static void handleTunerButtonClicked(lv_event_t *e);
 static void handleTunerModeButtonClicked(lv_event_t *e);
 static void handleTunerModeSelected(lv_event_t *e);
 static void handleInTuneThresholdButtonClicked(lv_event_t *e);
+static void handleMonitoringModeButtonClicked(lv_event_t *e);
 static void handleInTuneThresholdRadio(lv_event_t *e);
+static void handleMonitoringModeRadio(lv_event_t *e);
 
 static void handleDisplayButtonClicked(lv_event_t *e);
 static void handleBrightnessButtonClicked(lv_event_t *e);
@@ -183,6 +189,13 @@ void UserSettings::loadSettings() {
         inTuneCentsWidth = DEFAULT_IN_TUNE_CENTS_WIDTH;
     }
     ESP_LOGI(TAG, "In Tune Width: %d", inTuneCentsWidth);
+
+    if (nvs_get_u8(nvsHandle, SETTING_KEY_MONITORING_MODE, &value) == ESP_OK) {
+        monitoringMode = value;
+    } else {
+        monitoringMode = DEFAULT_MONITORING_MODE;
+    }
+    ESP_LOGI(TAG, "Monitoring Mode: %d", monitoringMode);
 
     if (nvs_get_u8(nvsHandle, SETTING_KEY_NOTE_NAME_PALETTE, &value) == ESP_OK) {
         noteNamePalette = (lv_palette_t)value;
@@ -310,6 +323,10 @@ void UserSettings::saveSettings() {
     value = inTuneCentsWidth;
     ESP_LOGI(TAG, "In Tune Width: %d", value);
     nvs_set_u8(nvsHandle, SETTING_KEY_IN_TUNE_WIDTH, value);
+
+    value = monitoringMode;
+    ESP_LOGI(TAG, "Monitoring Mode: %d", value);
+    nvs_set_u8(nvsHandle, SETTING_KEY_MONITORING_MODE, value);
 
     value = (uint8_t)noteNamePalette;
     ESP_LOGI(TAG, "Note Name Palette: %d", value);
@@ -874,12 +891,14 @@ static void handleTunerButtonClicked(lv_event_t *e) {
     const char *buttonNames[] = {
         MENU_BTN_TUNER_MODE,
         MENU_BTN_IN_TUNE_THRESHOLD,
+        MENU_BTN_MONITORING_MODE,
     };
     lv_event_cb_t callbackFunctions[] = {
         handleTunerModeButtonClicked,
         handleInTuneThresholdButtonClicked,
+        handleMonitoringModeButtonClicked,
     };
-    settings->createMenu(buttonNames, NULL, NULL, callbackFunctions, 2);
+    settings->createMenu(buttonNames, NULL, NULL, callbackFunctions, 3);
 }
 
 static void handleTunerModeButtonClicked(lv_event_t *e) {
@@ -962,6 +981,27 @@ static void handleInTuneThresholdButtonClicked(lv_event_t *e) {
                                1); // this setting is 1-based instead of 0-based
 }
 
+static void handleMonitoringModeButtonClicked(lv_event_t *e) {
+    ESP_LOGI(TAG, "Monitoring mode clicked");
+    UserSettings *settings;
+    if (!lvgl_port_lock(0)) {
+        return;
+    }
+    settings = (UserSettings *)lv_obj_get_user_data((lv_obj_t *)lv_event_get_target(e));
+    lvgl_port_unlock();
+    const char *buttonNames[] = {
+        MENU_BTN_MONITORING_OFF,
+        MENU_BTN_MONITORING_ON,
+    };
+    settings->createRadioList((const char *)MENU_BTN_MONITORING_MODE, 
+                               buttonNames,
+                               sizeof(buttonNames) / sizeof(buttonNames[0]),
+                               NULL,
+                               handleMonitoringModeRadio,
+                               &settings->monitoringMode,
+                               0); // a 0-based setting
+}
+
 static void handleInTuneThresholdRadio(lv_event_t *e) {
     if (!lvgl_port_lock(0)) {
         return;
@@ -985,6 +1025,30 @@ static void handleInTuneThresholdRadio(lv_event_t *e) {
 
     *thresholdSetting = lv_obj_get_index(act_cb) + 1; // Adjust before storing into settings for 1-based values
     ESP_LOGI(TAG, "New In Tune Threshold setting: %d", *thresholdSetting);
+
+    lvgl_port_unlock();
+}
+
+static void handleMonitoringModeRadio(lv_event_t *e) {
+    if (!lvgl_port_lock(0)) {
+        return;
+    }
+
+    uint8_t *monitoringSetting = (uint8_t *)lv_event_get_user_data(e);
+    int32_t radioIndex = ((int32_t)*monitoringSetting);
+
+    lv_obj_t * cont = (lv_obj_t *)lv_event_get_current_target(e);
+    lv_obj_t * act_cb = (lv_obj_t *)lv_event_get_target(e);
+    lv_obj_t * old_cb = (lv_obj_t *)lv_obj_get_child(cont, radioIndex);
+
+    // Do nothing if the container was clicked
+    if(act_cb == cont) return;
+
+    lv_obj_remove_state(old_cb, LV_STATE_CHECKED);   /*Uncheck the previous radio button*/
+    lv_obj_add_state(act_cb, LV_STATE_CHECKED);     /*Uncheck the current radio button*/
+
+    *monitoringSetting = lv_obj_get_index(act_cb);
+    ESP_LOGI(TAG, "New Monitoring Mode setting: %d", *monitoringSetting);
 
     lvgl_port_unlock();
 }

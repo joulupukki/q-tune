@@ -31,6 +31,7 @@
 #define ATTITUDE_PORTRAIT_VERTICAL_OFFSET -30
 #define ATTITUDE_LANDSCAPE_VERTICAL_OFFSET -10
 #define ATTITUDE_FRAME_COLOR 0x222222
+#define ATTITUDE_RESOLUTION_FACTOR 1.25 // Move 1.25 pixels per cent of change
 
 static const char *TAG = "ATTITUDE_UI";
 
@@ -79,6 +80,7 @@ lv_obj_t *attitude_sharp_img;
 lv_obj_t *attitude_left_tick;
 lv_obj_t *attitude_right_tick;
 
+lv_obj_t *attitude_mute_label;
 lv_obj_t *attitude_frequency_label;
 lv_style_t attitude_frequency_label_style;
 lv_obj_t *attitude_cents_label;
@@ -113,7 +115,7 @@ void attitude_gui_init(lv_obj_t *screen) {
     attitude_create_labels(screen);
 }
 
-void attitude_gui_display_frequency(float frequency, TunerNoteName note_name, float cents) {
+void attitude_gui_display_frequency(float frequency, TunerNoteName note_name, float cents, bool show_mute_indicator) {
     if (note_name < 0) { return; } // Strangely I'm sometimes seeing negative values. No idea how.
     if (note_name != NOTE_NONE) {
         lv_label_set_text_fmt(attitude_frequency_label, "%.2f", frequency);
@@ -142,7 +144,7 @@ void attitude_gui_display_frequency(float frequency, TunerNoteName note_name, fl
             attitude_slider,
             LV_ALIGN_CENTER,
             0,
-            (attitude_is_landscape ? ATTITUDE_LANDSCAPE_VERTICAL_OFFSET : ATTITUDE_PORTRAIT_VERTICAL_OFFSET) + cents * -1);
+            (attitude_is_landscape ? ATTITUDE_LANDSCAPE_VERTICAL_OFFSET : ATTITUDE_PORTRAIT_VERTICAL_OFFSET) + cents * ATTITUDE_RESOLUTION_FACTOR * -1);
     } else {
         // Hide the pitch and indicators since it's not detected
         if (attitude_last_displayed_note != NOTE_NONE) {
@@ -153,6 +155,12 @@ void attitude_gui_display_frequency(float frequency, TunerNoteName note_name, fl
         // Hide the frequency, and cents labels
         lv_obj_add_flag(attitude_cents_label, LV_OBJ_FLAG_HIDDEN);
         lv_obj_add_flag(attitude_frequency_label, LV_OBJ_FLAG_HIDDEN);
+    }
+
+    if (show_mute_indicator) {
+        lv_obj_clear_flag(attitude_mute_label, LV_OBJ_FLAG_HIDDEN);
+    } else {
+        lv_obj_add_flag(attitude_mute_label, LV_OBJ_FLAG_HIDDEN);
     }
 }
 
@@ -211,7 +219,7 @@ void attitude_create_slider_ruler(lv_obj_t *parent) {
         lv_obj_set_style_bg_color(line, lv_color_white(), 0);
         lv_obj_set_style_bg_opa(line, LV_OPA_50, 0);
         lv_obj_set_style_border_width(line, 0, 0);
-        lv_obj_align(line, LV_ALIGN_CENTER, 0, i * -1);
+        lv_obj_align(line, LV_ALIGN_CENTER, 0, i * -1 * ATTITUDE_RESOLUTION_FACTOR);
 
         lv_obj_t *label; 
         if (is_label_line) {
@@ -234,7 +242,7 @@ void attitude_create_slider_ruler(lv_obj_t *parent) {
         lv_obj_set_style_bg_color(line, lv_color_white(), 0);
         lv_obj_set_style_bg_opa(line, LV_OPA_50, 0);
         lv_obj_set_style_border_width(line, 0, 0);
-        lv_obj_align(line, LV_ALIGN_CENTER, 0, i);
+        lv_obj_align(line, LV_ALIGN_CENTER, 0, i * ATTITUDE_RESOLUTION_FACTOR);
 
         if (is_label_line) {
             label = lv_label_create(parent);
@@ -283,6 +291,13 @@ void attitude_create_labels(lv_obj_t * parent) {
     //     lv_obj_set_style_img_recolor(attitude_note_img, lv_palette_main(palette), 0);
     //     lv_obj_set_style_img_recolor(attitude_sharp_img, lv_palette_main(palette), 0);
     // }
+
+    // MUTE label (for monitoring mode)
+    attitude_mute_label = lv_label_create(parent);
+    lv_label_set_text_static(attitude_mute_label, "MUTE");
+    lv_obj_set_style_text_font(attitude_mute_label, &lv_font_montserrat_18, 0);
+    lv_obj_align(attitude_mute_label, LV_ALIGN_TOP_LEFT, 2, 0);
+    lv_obj_add_flag(attitude_mute_label, LV_OBJ_FLAG_HIDDEN);
 
     // Frequency Label (very bottom)
     attitude_frequency_label = lv_label_create(parent);
