@@ -17,6 +17,7 @@ set(SRCS
     tuning-ui/tuner_ui_attitude.cpp
     tuning-ui/tuner_ui_needle.cpp
     tuning-ui/tuner_ui_strobe.cpp
+    tuning-ui/tuner_ui_note_quiz.cpp
 
     utils/lcd.c
     utils/touch.c

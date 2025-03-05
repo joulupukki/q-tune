@@ -38,6 +38,7 @@
 #include "tuner_ui_attitude.h"
 #include "tuner_ui_needle.h"
 #include "tuner_ui_strobe.h"
+#include "tuner_ui_note_quiz.h"
 
 //
 // LVGL Support
@@ -149,6 +150,14 @@ TunerGUIInterface attitude_gui = {
     .cleanup = attitude_gui_cleanup
 };
 
+TunerGUIInterface note_quiz_gui = {
+    .get_id = quiz_gui_get_id,
+    .get_name = quiz_gui_get_name,
+    .init = quiz_gui_init,
+    .display_frequency = quiz_gui_display_frequency,
+    .cleanup = quiz_gui_cleanup
+};
+
 TunerGUIInterface available_guis[] = {
 
     // IMPORTANT: Make sure you update `num_of_available_guis` below so any new
@@ -157,9 +166,10 @@ TunerGUIInterface available_guis[] = {
     needle_gui, // ID = 0
     strobe_gui,
     attitude_gui,
+    note_quiz_gui,
 };
 
-size_t num_of_available_guis = 3;
+size_t num_of_available_guis = 4;
 
 TunerStandbyGUIInterface *active_standby_gui = NULL;
 TunerGUIInterface *active_gui = NULL;
@@ -240,7 +250,7 @@ void tuner_gui_task(void *pvParameter) {
 
         bool monitoring_mode = userSettings->monitoringMode && current_ui_tuner_state == tunerStateStandby;
         if ((monitoring_mode || current_ui_tuner_state == tunerStateTuning) && lvgl_port_lock(0)) {
-            bool show_mute_indicator = current_ui_tuner_state == tunerStateTuning;
+            bool show_mute_indicator = current_ui_tuner_state == tunerStateTuning && userSettings->monitoringMode;
             float frequency = get_current_frequency();
             if (frequency > 0) {
                 TunerNoteName note_name = get_pitch_name_and_cents_from_frequency(frequency, &cents);

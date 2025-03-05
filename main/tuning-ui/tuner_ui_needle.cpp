@@ -205,6 +205,7 @@ void needle_create_ruler(lv_obj_t * parent) {
     lv_palette_t note_color = userSettings->noteNamePalette;
     center_target = lv_image_create(cents_container);
     lv_image_set_src(center_target, LV_SYMBOL_UP); // TODO: change this to a label
+    lv_obj_set_style_img_recolor_opa(center_target, LV_OPA_COVER, LV_PART_MAIN); // enable recoloring
     lv_obj_set_style_img_recolor(center_target, lv_palette_main(note_color), 0);
     lv_obj_align(center_target, LV_ALIGN_TOP_MID, 0, -6);
     lv_obj_add_flag(center_target, LV_OBJ_FLAG_HIDDEN);
