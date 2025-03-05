@@ -22,8 +22,8 @@
 //
 // Foot Switch and Relay (GPIO)
 //
-#define FOOT_SWITCH_GPIO                GPIO_NUM_0 // Use this to use the CYD's BOOT onboard switch
-// #define FOOT_SWITCH_GPIO                GPIO_NUM_27
+// #define FOOT_SWITCH_GPIO                GPIO_NUM_0 // Use this to use the CYD's BOOT onboard switch
+#define FOOT_SWITCH_GPIO                GPIO_NUM_27
 #define RELAY_GPIO                      GPIO_NUM_22
 
 #define LONG_PRESS_TIME_MS              1000 // milliseconds
