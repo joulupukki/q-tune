@@ -29,7 +29,8 @@
 #include "esp_random.h"
 
 #define NOTE_QUIZ_TARGET_NOTE_DURATION_MS 100
-#define NOTE_QUIZ_IN_TUNE_ARROW_OFFSET 15
+#define NOTE_QUIZ_IN_TUNE_SLIDER_OFFSET 18
+#define NOTE_QUIZ_SLIDER_HEIGHT 25
 
 static const char *TAG = "NOTE_QUIZ";
 
@@ -90,8 +91,14 @@ lv_style_t quiz_frequency_label_style;
 lv_obj_t *quiz_cents_label;
 lv_style_t quiz_cents_label_style;
 
-lv_obj_t *quiz_cents_indicator_top;
-lv_obj_t *quiz_cents_indicator_bottom;
+lv_obj_t *quiz_slider_container_left;
+lv_obj_t *quiz_slider_container_right;
+lv_obj_t *quiz_slider_left;
+lv_obj_t *quiz_slider_right;
+
+lv_palette_t quiz_user_note_palette;
+lv_color_t quiz_user_note_color;
+lv_color_t quiz_slider_out_color;
 
 // When a new note is detected, this should be set to the current time. This
 // allows us to determine the elapsed seconds for how long a note should be
@@ -114,6 +121,14 @@ void quiz_gui_init(lv_obj_t *screen) {
     quiz_last_displayed_note = NOTE_NONE;
     quiz_upcoming_note = NOTE_NONE;
     quiz_last_note_change_time_ms = -1;
+
+    quiz_user_note_palette = userSettings->noteNamePalette;
+    if (quiz_user_note_palette == LV_PALETTE_NONE) {
+        quiz_user_note_color = lv_color_white();
+    } else {
+        quiz_user_note_color = lv_palette_main(quiz_user_note_palette);
+    }
+    quiz_slider_out_color = lv_palette_main(LV_PALETTE_GREY);
 }
 
 void quiz_gui_display_frequency(float frequency, TunerNoteName note_name, float cents, bool show_mute_indicator) {
@@ -127,8 +142,8 @@ void quiz_gui_display_frequency(float frequency, TunerNoteName note_name, float 
     if (note_name != NOTE_NONE) {
         lv_label_set_text_fmt(quiz_frequency_label, "%.2f", frequency);
         lv_obj_clear_flag(quiz_frequency_label, LV_OBJ_FLAG_HIDDEN);
-        lv_obj_clear_flag(quiz_cents_indicator_top, LV_OBJ_FLAG_HIDDEN);
-        lv_obj_clear_flag(quiz_cents_indicator_bottom, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_clear_flag(quiz_slider_container_left, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_clear_flag(quiz_slider_container_right, LV_OBJ_FLAG_HIDDEN);
 
         if (quiz_last_displayed_note != note_name) {
             lv_label_set_text_static(quiz_note_label, name_for_note(note_name));
@@ -150,20 +165,15 @@ void quiz_gui_display_frequency(float frequency, TunerNoteName note_name, float 
             // the best way to do that is.
         }
 
-        if (abs(cents) <= userSettings->inTuneCentsWidth) {
-            // When the tuning is within the threshold, show the top and bottom
-            // triangles in the red.
-            lv_obj_set_style_img_recolor(quiz_cents_indicator_top, lv_palette_main(LV_PALETTE_RED), 0);
-            lv_obj_set_style_img_recolor(quiz_cents_indicator_bottom, lv_palette_main(LV_PALETTE_RED), 0);
-            lv_obj_set_style_text_color(quiz_note_label, lv_palette_main(LV_PALETTE_RED), 0);
-        } else {
-            lv_obj_set_style_img_recolor(quiz_cents_indicator_top, lv_color_white(), 0);
-            lv_obj_set_style_img_recolor(quiz_cents_indicator_bottom, lv_color_white(), 0);
-            lv_obj_set_style_text_color(quiz_note_label, lv_color_white(), 0);
-        }
+        bool is_in_tune = abs(cents) <= userSettings->inTuneCentsWidth;
+        lv_color_t left_slider_color = (is_in_tune || cents > 0) ? quiz_user_note_color : quiz_slider_out_color;
+        lv_color_t right_slider_color = (is_in_tune || cents < 0) ? quiz_user_note_color : quiz_slider_out_color;
 
-        lv_obj_align(quiz_cents_indicator_top, LV_ALIGN_CENTER, cents * 1.5, -NOTE_QUIZ_IN_TUNE_ARROW_OFFSET);
-        lv_obj_align(quiz_cents_indicator_bottom, LV_ALIGN_CENTER, cents * 1.5, NOTE_QUIZ_IN_TUNE_ARROW_OFFSET);
+        lv_obj_set_style_bg_color(quiz_slider_left, left_slider_color, 0);
+        lv_obj_set_style_bg_color(quiz_slider_right, right_slider_color, 0);
+
+        lv_obj_align(quiz_slider_container_left, LV_ALIGN_LEFT_MID, (cents * (cents >= 0 ? 0 : 1)) - NOTE_QUIZ_IN_TUNE_SLIDER_OFFSET, 0);
+        lv_obj_align(quiz_slider_container_right, LV_ALIGN_RIGHT_MID, (cents * (cents <= 0 ? 0 : 1)) + NOTE_QUIZ_IN_TUNE_SLIDER_OFFSET, 0);
     } else {
         // Hide the pitch and indicators since it's not detected
         if (quiz_last_displayed_note != NOTE_NONE) {
@@ -174,8 +184,8 @@ void quiz_gui_display_frequency(float frequency, TunerNoteName note_name, float 
         // Hide the frequency, and cents labels
         lv_obj_add_flag(quiz_cents_label, LV_OBJ_FLAG_HIDDEN);
         lv_obj_add_flag(quiz_frequency_label, LV_OBJ_FLAG_HIDDEN);
-        lv_obj_add_flag(quiz_cents_indicator_top, LV_OBJ_FLAG_HIDDEN);
-        lv_obj_add_flag(quiz_cents_indicator_bottom, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_add_flag(quiz_slider_container_left, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_add_flag(quiz_slider_container_right, LV_OBJ_FLAG_HIDDEN);
 
         quiz_last_note_change_time_ms = -1; // Reset the timer
     }
@@ -185,6 +195,9 @@ void quiz_gui_display_frequency(float frequency, TunerNoteName note_name, float 
     } else {
         lv_obj_add_flag(quiz_mute_label, LV_OBJ_FLAG_HIDDEN);
     }
+
+    lv_obj_set_style_img_recolor(quiz_note_img, quiz_user_note_color, 0);
+    lv_obj_set_style_img_recolor(quiz_sharp_img, quiz_user_note_color, 0);
 }
 
 void quiz_gui_cleanup() {
@@ -226,14 +239,8 @@ void quiz_create_labels(lv_obj_t * parent) {
     // Enable recoloring on the images
     lv_obj_set_style_img_recolor_opa(quiz_note_img, LV_OPA_COVER, LV_PART_MAIN);
     lv_obj_set_style_img_recolor_opa(quiz_sharp_img, LV_OPA_COVER, LV_PART_MAIN);
-    lv_palette_t palette = userSettings->noteNamePalette;
-    if (palette == LV_PALETTE_NONE) {
-        lv_obj_set_style_img_recolor(quiz_note_img, lv_color_white(), 0);
-        lv_obj_set_style_img_recolor(quiz_sharp_img, lv_color_white(), 0);
-    } else {
-        lv_obj_set_style_img_recolor(quiz_note_img, lv_palette_main(palette), 0);
-        lv_obj_set_style_img_recolor(quiz_sharp_img, lv_palette_main(palette), 0);
-    }
+    lv_obj_set_style_img_recolor(quiz_note_img, quiz_user_note_color, 0);
+    lv_obj_set_style_img_recolor(quiz_sharp_img, quiz_user_note_color, 0);
 
     //
     // Next Note
@@ -302,20 +309,43 @@ void quiz_create_labels(lv_obj_t * parent) {
     lv_obj_align(quiz_note_label, LV_ALIGN_CENTER, 0, 0);
     lv_obj_add_style(quiz_note_label, &quiz_frequency_label_style, 0);
 
-    // Cents Indicators
-    quiz_cents_indicator_top = lv_image_create(parent);
-    lv_image_set_src(quiz_cents_indicator_top, LV_SYMBOL_DOWN);    
-    lv_obj_set_style_img_recolor_opa(quiz_cents_indicator_top, LV_OPA_COVER, LV_PART_MAIN); // Enable recoloring on the image
-    lv_obj_set_style_img_recolor(quiz_cents_indicator_top, lv_color_white(), 0);
-    lv_obj_align(quiz_cents_indicator_top, LV_ALIGN_CENTER, 0, -NOTE_QUIZ_IN_TUNE_ARROW_OFFSET);
-    lv_obj_add_flag(quiz_cents_indicator_top, LV_OBJ_FLAG_HIDDEN);
+    //
+    // Cents Sliders
+    //
 
-    quiz_cents_indicator_bottom = lv_image_create(parent);
-    lv_image_set_src(quiz_cents_indicator_bottom, LV_SYMBOL_UP);
-    lv_obj_set_style_img_recolor_opa(quiz_cents_indicator_bottom, LV_OPA_COVER, LV_PART_MAIN); // Enable recoloring on the image
-    lv_obj_set_style_img_recolor(quiz_cents_indicator_bottom, lv_color_white(), 0);
-    lv_obj_align(quiz_cents_indicator_bottom, LV_ALIGN_CENTER, 0, NOTE_QUIZ_IN_TUNE_ARROW_OFFSET);
-    lv_obj_add_flag(quiz_cents_indicator_bottom, LV_OBJ_FLAG_HIDDEN);
+    // left side
+    quiz_slider_container_left = lv_obj_create(parent);
+    lv_obj_set_size(quiz_slider_container_left, lv_pct(50), NOTE_QUIZ_SLIDER_HEIGHT);
+    lv_obj_set_style_bg_opa(quiz_slider_container_left, LV_OPA_0, 0);
+    lv_obj_set_scrollbar_mode(quiz_slider_container_left, LV_SCROLLBAR_MODE_OFF);
+    lv_obj_set_style_border_width(quiz_slider_container_left, 0, 0);
+    lv_obj_set_style_pad_all(quiz_slider_container_left, 0, 0);
+    lv_obj_align(quiz_slider_container_left, LV_ALIGN_LEFT_MID, -NOTE_QUIZ_IN_TUNE_SLIDER_OFFSET, 0);
+
+    quiz_slider_left = lv_obj_create(quiz_slider_container_left);
+    lv_obj_set_size(quiz_slider_left, lv_pct(100), lv_pct(100));
+    lv_obj_set_style_border_width(quiz_slider_left, 0, 0);
+    lv_obj_set_style_radius(quiz_slider_left, 0, 0);
+    lv_obj_set_scrollbar_mode(quiz_slider_left, LV_SCROLLBAR_MODE_OFF);
+    lv_obj_set_style_bg_color(quiz_slider_left, lv_palette_main(LV_PALETTE_GREY), 0);
+    lv_obj_align(quiz_slider_left, LV_ALIGN_RIGHT_MID, 0, 0);
+
+    // right side
+    quiz_slider_container_right = lv_obj_create(parent);
+    lv_obj_set_size(quiz_slider_container_right, lv_pct(50), NOTE_QUIZ_SLIDER_HEIGHT);
+    lv_obj_set_style_bg_opa(quiz_slider_container_right, LV_OPA_0, 0);
+    lv_obj_set_scrollbar_mode(quiz_slider_container_right, LV_SCROLLBAR_MODE_OFF);
+    lv_obj_set_style_border_width(quiz_slider_container_right, 0, 0);
+    lv_obj_set_style_pad_all(quiz_slider_container_right, 0, 0);
+    lv_obj_align(quiz_slider_container_right, LV_ALIGN_RIGHT_MID, NOTE_QUIZ_IN_TUNE_SLIDER_OFFSET, 0);
+
+    quiz_slider_right = lv_obj_create(quiz_slider_container_right);
+    lv_obj_set_size(quiz_slider_right, lv_pct(100), lv_pct(100));
+    lv_obj_set_style_border_width(quiz_slider_right, 0, 0);
+    lv_obj_set_style_radius(quiz_slider_right, 0, 0);
+    lv_obj_set_scrollbar_mode(quiz_slider_right, LV_SCROLLBAR_MODE_OFF);
+    lv_obj_set_style_bg_color(quiz_slider_right, lv_palette_main(LV_PALETTE_GREY), 0);
+    lv_obj_align(quiz_slider_right, LV_ALIGN_LEFT_MID, 0, 0);
 }
 
 void quiz_update_note_name(lv_obj_t *img, lv_obj_t *sharp_img, TunerNoteName new_value) {
