@@ -185,7 +185,7 @@ void strobe_create_labels(lv_obj_t * parent) {
     // MUTE label (for monitoring mode)
     strobe_mute_label = lv_label_create(parent);
     lv_label_set_text_static(strobe_mute_label, "MUTE");
-    lv_obj_set_style_text_font(strobe_mute_label, &lv_font_montserrat_18, 0);
+    lv_obj_set_style_text_font(strobe_mute_label, &lv_font_montserrat_36, 0);
     lv_obj_align(strobe_mute_label, LV_ALIGN_TOP_LEFT, 2, 0);
     lv_obj_add_flag(strobe_mute_label, LV_OBJ_FLAG_HIDDEN);
 
@@ -199,7 +199,7 @@ void strobe_create_labels(lv_obj_t * parent) {
     lv_obj_align(strobe_frequency_label, LV_ALIGN_BOTTOM_RIGHT, 0, 0);
 
     lv_style_init(&strobe_frequency_label_style);
-    lv_style_set_text_font(&strobe_frequency_label_style, &lv_font_montserrat_18);
+    lv_style_set_text_font(&strobe_frequency_label_style, &lv_font_montserrat_36);
     lv_obj_add_style(strobe_frequency_label, &strobe_frequency_label_style, 0);
     lv_obj_add_flag(strobe_frequency_label, LV_OBJ_FLAG_HIDDEN);
 
@@ -207,7 +207,7 @@ void strobe_create_labels(lv_obj_t * parent) {
     strobe_cents_label = lv_label_create(parent);
     
     lv_style_init(&strobe_cents_label_style);
-    lv_style_set_text_font(&strobe_cents_label_style, &lv_font_montserrat_18);
+    lv_style_set_text_font(&strobe_cents_label_style, &lv_font_montserrat_36);
     lv_obj_add_style(strobe_cents_label, &strobe_cents_label_style, 0);
 
     lv_obj_set_width(strobe_cents_label, screen_width / 2);

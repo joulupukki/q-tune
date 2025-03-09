@@ -60,7 +60,8 @@ using pitch = cycfi::q::pitch;
 CONSTEXPR frequency low_fs = cycfi::q::pitch_names::C[1];
 CONSTEXPR frequency high_fs = cycfi::q::pitch_names::C[7]; // Setting this higher helps to catch the high harmonics
 
-static adc_channel_t channel[1] = {ADC_CHANNEL_7}; // ESP32-WROOM-32 CYD - GPIO 35 (ADC1_CH7)
+// static adc_channel_t channel[1] = {ADC_CHANNEL_7}; // ESP32-WROOM-32 CYD - GPIO 35 (ADC1_CH7)
+static adc_channel_t channel[1] = {ADC_CHANNEL_3}; // ESP32-S3 EBD4 - GPIO 4 (ADC1_CH3)
 
 // 1EU Filter Initialization Params
 static const double euFilterFreq = EU_FILTER_ESTIMATED_FREQ; // I believe this means no guess as to what the incoming frequency will initially be
@@ -110,6 +111,10 @@ static void continuous_adc_init(adc_channel_t *channel, uint8_t channel_count, a
         ESP_LOGI(TAG, "adc_pattern[%d].channel is :%" PRIx8, i, adc_pattern[i].channel);
         ESP_LOGI(TAG, "adc_pattern[%d].unit is :%" PRIx8, i, adc_pattern[i].unit);
     }
+
+    int adc_gpio_num = -1;
+    adc_continuous_channel_to_io(ADC_UNIT_1, ADC_CHANNEL_3, &adc_gpio_num);
+    ESP_LOGI(TAG, "ADC Channel 3 is on GPIO %d", adc_gpio_num);
 
     adc_continuous_config_t dig_cfg = {
         .pattern_num = channel_count,
@@ -319,6 +324,11 @@ void pitch_detector_task(void *pvParameter) {
                         f = medianFilter.addValue(f);
                         if (f != -1.0f) {
                             set_current_frequency(f);
+
+                            // int8_t current_seconds = (int8_t)time_seconds;
+                            // if (current_seconds % 2 == 0) {
+                            //     ESP_LOGI(TAG, "Frequency: %f", f);
+                            // }
                         }
                     }
                 }

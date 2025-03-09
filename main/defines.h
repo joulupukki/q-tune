@@ -22,13 +22,19 @@
 //
 // Foot Switch and Relay (GPIO)
 //
-// #define FOOT_SWITCH_GPIO                GPIO_NUM_0 // Use this to use the CYD's BOOT onboard switch
-#define FOOT_SWITCH_GPIO                GPIO_NUM_27
-#define RELAY_GPIO                      GPIO_NUM_22
+#define FOOT_SWITCH_GPIO                GPIO_NUM_0 // BOOT button
+// #define FOOT_SWITCH_GPIO                GPIO_NUM_44 // TXD on EBD4
+#define RELAY_GPIO                      GPIO_NUM_43 // RXD on EBD4
 
 #define LONG_PRESS_TIME_MS              1000 // milliseconds
 #define DOUBLE_PRESS_TIME_MS            250 // milliseconds
 #define DEBOUNCE_TIME_MS                50 // milliseconds
+
+#define DISPLAY_BUFFER_ROWS             32
+#define DISPLAY_BUFFER_SIZE             (480 * DISPLAY_BUFFER_ROWS)
+#define LCD_DOUBLE_BUFFER               1
+#define LCD_MIRROR_X                    (false)
+#define LCD_MIRROR_Y                    (false)
 
 //
 // Default User Settings
@@ -58,22 +64,28 @@
 #define TUNER_ADC_BIT_WIDTH               12
 
 // #if CONFIG_IDF_TARGET_ESP32 || CONFIG_IDF_TARGET_ESP32S2
-#define TUNER_ADC_OUTPUT_TYPE             ADC_DIGI_OUTPUT_FORMAT_TYPE1
-#define TUNER_ADC_GET_CHANNEL(p_data)     ((p_data)->type1.channel)
-#define TUNER_ADC_GET_DATA(p_data)        ((p_data)->type1.data)
+// #define TUNER_ADC_OUTPUT_TYPE             ADC_DIGI_OUTPUT_FORMAT_TYPE1
+// #define TUNER_ADC_GET_CHANNEL(p_data)     ((p_data)->type1.channel)
+// #define TUNER_ADC_GET_DATA(p_data)        ((p_data)->type1.data)
 // #else
-// #define TUNER_ADC_OUTPUT_TYPE             ADC_DIGI_OUTPUT_FORMAT_TYPE2
-// #define TUNER_ADC_GET_CHANNEL(p_data)     ((p_data)->type2.channel)
-// #define TUNER_ADC_GET_DATA(p_data)        ((p_data)->type2.data)
+#define TUNER_ADC_OUTPUT_TYPE             ADC_DIGI_OUTPUT_FORMAT_TYPE2
+#define TUNER_ADC_GET_CHANNEL(p_data)     ((p_data)->type2.channel)
+#define TUNER_ADC_GET_DATA(p_data)        ((p_data)->type2.data)
 // #endif
 
 // CYD @ 48kHz
-#define TUNER_ADC_FRAME_SIZE            1024
-#define TUNER_ADC_BUFFER_POOL_SIZE      4096
-#define TUNER_ADC_SAMPLE_RATE           (48 * 1000) // 48kHz
+// #define TUNER_ADC_FRAME_SIZE            1024
+// #define TUNER_ADC_BUFFER_POOL_SIZE      4096
+// #define TUNER_ADC_SAMPLE_RATE           (48 * 1000) // 48kHz
+
+// EBD4 @ 5kHz
+#define TUNER_ADC_FRAME_SIZE            (SOC_ADC_DIGI_DATA_BYTES_PER_CONV * 64)
+#define TUNER_ADC_BUFFER_POOL_SIZE      (TUNER_ADC_FRAME_SIZE * 4)
+#define TUNER_ADC_SAMPLE_RATE           (5 * 1000) // 5kHz 
 
 /// @brief This factor is used to correct the incoming frequency readings on ESP32-WROOM-32 (which CYD is). This same weird behavior does not happen on ESP32-S2 or ESP32-S3.
-#define WEIRD_ESP32_WROOM_32_FREQ_FIX_FACTOR    1.2222222223 // 11/9 but using 11/9 gives completely incorrect results. Weird.
+// #define WEIRD_ESP32_WROOM_32_FREQ_FIX_FACTOR    1.2222222223 // 11/9 but using 11/9 gives completely incorrect results. Weird.
+#define WEIRD_ESP32_WROOM_32_FREQ_FIX_FACTOR    1 // ESP32-S3 does not need this correction.
 
 // HELTEC @ 20kHz
 // #define TUNER_ADC_FRAME_SIZE            (SOC_ADC_DIGI_DATA_BYTES_PER_CONV * 256)
@@ -90,7 +102,7 @@
 // the frequency. This should help cut down on the noise from the
 // OLED and only attempt to read frequency information when an
 // actual input signal is being read.
-#define TUNER_READING_DIFF_MINIMUM      120 // approximately 120mV
+#define TUNER_READING_DIFF_MINIMUM      80 // approximately 80mV
 
 //
 // Smoothing

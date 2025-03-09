@@ -6,40 +6,74 @@
 #include <esp_err.h>
 #include <esp_timer.h>
 #include <esp_lcd_touch.h>
-#include <esp_lcd_touch_xpt2046.h>
+// #include <esp_lcd_touch_xpt2046.h>
+#include <esp_lcd_touch_gt911.h>
 
-#include <driver/spi_master.h>
+//#include <driver/spi_master.h>
+#include <driver/i2c.h>
 #include <driver/gpio.h>
 
 #include "hardware.h"
 #include "touch.h"
 
-static uint16_t map(uint16_t n, uint16_t in_min, uint16_t in_max, uint16_t out_min, uint16_t out_max)
-{
-    uint16_t value = (n - in_min) * (out_max - out_min) / (in_max - in_min);
-    return (value < out_min) ? out_min : ((value > out_max) ? out_max : value);
-}
+/********************* I2C *********************/
+#define I2C_Touch_SCL_IO            7         /*!< GPIO number used for I2C master clock */
+#define I2C_Touch_SDA_IO            15         /*!< GPIO number used for I2C master data  */
+#define I2C_MASTER_NUM              0         /*!< I2C master i2c port number, the number of i2c peripheral interfaces available will depend on the chip */
+#define I2C_MASTER_FREQ_HZ          400000    /*!< I2C master clock frequency */
+#define I2C_MASTER_TX_BUF_DISABLE   0         /*!< I2C master doesn't need buffer */
+#define I2C_MASTER_RX_BUF_DISABLE   0         /*!< I2C master doesn't need buffer */
+#define I2C_MASTER_TIMEOUT_MS       1000
 
-static void process_coordinates(esp_lcd_touch_handle_t tp, uint16_t *x, uint16_t *y, uint16_t *strength, uint8_t *point_num, uint8_t max_point_num)
+// static uint16_t map(uint16_t n, uint16_t in_min, uint16_t in_max, uint16_t out_min, uint16_t out_max)
+// {
+//     uint16_t value = (n - in_min) * (out_max - out_min) / (in_max - in_min);
+//     return (value < out_min) ? out_min : ((value > out_max) ? out_max : value);
+// }
+
+// static void process_coordinates(esp_lcd_touch_handle_t tp, uint16_t *x, uint16_t *y, uint16_t *strength, uint8_t *point_num, uint8_t max_point_num)
+// {
+//     *x = map(*x, TOUCH_X_RES_MIN, TOUCH_X_RES_MAX, 0, LCD_H_RES);
+//     *y = map(*y, TOUCH_Y_RES_MIN, TOUCH_Y_RES_MAX, 0, LCD_V_RES);
+// }
+
+/**
+ * @brief i2c master initialization
+ */
+static esp_err_t i2c_master_init(void)
 {
-    *x = map(*x, TOUCH_X_RES_MIN, TOUCH_X_RES_MAX, 0, LCD_H_RES);
-    *y = map(*y, TOUCH_Y_RES_MIN, TOUCH_Y_RES_MAX, 0, LCD_V_RES);
+    int i2c_master_port = I2C_MASTER_NUM;
+
+    i2c_config_t conf = {
+        .mode = I2C_MODE_MASTER,
+        .sda_io_num = I2C_Touch_SDA_IO,
+        .scl_io_num = I2C_Touch_SCL_IO,
+        .sda_pullup_en = GPIO_PULLUP_ENABLE,
+        .scl_pullup_en = GPIO_PULLUP_ENABLE,
+        .master.clk_speed = I2C_MASTER_FREQ_HZ,
+    };
+
+    i2c_param_config(i2c_master_port, &conf);
+
+    return i2c_driver_install(i2c_master_port, conf.mode, I2C_MASTER_RX_BUF_DISABLE, I2C_MASTER_TX_BUF_DISABLE, 0);
 }
 
 esp_err_t touch_init(esp_lcd_touch_handle_t *tp)
 {
+    ESP_ERROR_CHECK(i2c_master_init());
+
     esp_lcd_panel_io_handle_t tp_io_handle = NULL;
 
-    const esp_lcd_panel_io_spi_config_t tp_io_config = { .cs_gpio_num = TOUCH_CS,
-        .dc_gpio_num = TOUCH_DC,
-        .spi_mode = 0,
-        .pclk_hz = TOUCH_CLOCK_HZ,
-        .trans_queue_depth = 3,
-        .on_color_trans_done = NULL,
-        .user_ctx = NULL,
-        .lcd_cmd_bits = 8,
-        .lcd_param_bits = 8,
-        .flags = { .dc_low_on_data = 0, .octal_mode = 0, .sio_mode = 0, .lsb_first = 0, .cs_high_active = 0 } };
+    // const esp_lcd_panel_io_spi_config_t tp_io_config = { .cs_gpio_num = TOUCH_CS,
+    //     .dc_gpio_num = TOUCH_DC,
+    //     .spi_mode = 0,
+    //     .pclk_hz = TOUCH_CLOCK_HZ,
+    //     .trans_queue_depth = 3,
+    //     .on_color_trans_done = NULL,
+    //     .user_ctx = NULL,
+    //     .lcd_cmd_bits = 8,
+    //     .lcd_param_bits = 8,
+    //     .flags = { .dc_low_on_data = 0, .octal_mode = 0, .sio_mode = 0, .lsb_first = 0, .cs_high_active = 0 } };
 
     static const int SPI_MAX_TRANSFER_SIZE = 32768;
     const spi_bus_config_t buscfg_touch = { .mosi_io_num = TOUCH_SPI_MOSI,
@@ -73,7 +107,8 @@ esp_err_t touch_init(esp_lcd_touch_handle_t *tp)
     ESP_ERROR_CHECK(spi_bus_initialize(TOUCH_SPI, &buscfg_touch, SPI_DMA_CH_AUTO));
 
     ESP_ERROR_CHECK(esp_lcd_new_panel_io_spi((esp_lcd_spi_bus_handle_t)TOUCH_SPI, &tp_io_config, &tp_io_handle));
-    ESP_ERROR_CHECK(esp_lcd_touch_new_spi_xpt2046(tp_io_handle, &tp_cfg, tp));
+    // ESP_ERROR_CHECK(esp_lcd_touch_new_spi_xpt2046(tp_io_handle, &tp_cfg, tp));
+    ESP_ERROR_CHECK(esp_lcd_touch_new_i2c_gt911(tp_io_handle, &tp_cfg, tp));
 
     return ESP_OK;
 }

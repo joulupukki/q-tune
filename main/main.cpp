@@ -27,6 +27,11 @@
 #include "tuner_controller.h"
 #include "tuner_gui_task.h"
 
+extern "C" { // because these files are C and not C++
+    #include "TCA9554PWR.h"
+    #include "I2C_Driver.h"
+}
+
 extern void gpio_task(void *pvParameter);
 extern void tuner_gui_task(void *pvParameter);
 extern void pitch_detector_task(void *pvParameter);
@@ -116,13 +121,16 @@ extern "C" void app_main() {
     userSettings = new UserSettings(user_settings_will_show_cb, user_settings_changed_cb, user_settings_will_exit_cb);
     user_settings_changed_cb(); // Calling this allows the pitch detector and tuner UI to initialize properly with current user
 
+    I2C_Init();
+    EXIO_Init();
+
     tunerController = new TunerController(tuner_state_will_change_cb, tuner_state_did_change_cb, footswitch_pressed_cb);
 
     // // Start the GPIO Task
     xTaskCreatePinnedToCore(
         gpio_task,          // callback function
         "gpio",             // debug name of the task
-        2048,               // stack depth (no idea what this should be)
+        4096,               // stack depth (no idea what this should be)
         NULL,               // params to pass to the callback function
         0,                  // ux priority - higher value is higher priority
         &gpioTaskHandle,    // handle to the created task - we don't need it

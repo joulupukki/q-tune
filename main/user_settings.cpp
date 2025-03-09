@@ -472,7 +472,8 @@ void UserSettings::createMenu(const char *buttonNames[], const char *buttonSymbo
     lv_obj_set_scroll_dir(scrollable, LV_DIR_VER);         // Enable vertical scrolling
     lv_obj_set_scrollbar_mode(scrollable, LV_SCROLLBAR_MODE_AUTO); // Show scrollbar when scrolling
     lv_obj_set_style_pad_all(scrollable, 10, 0);           // Add padding for aesthetics
-    lv_obj_set_style_bg_color(scrollable, lv_palette_darken(LV_PALETTE_BLUE_GREY, 4), 0); // Optional background color
+    // lv_obj_set_style_bg_color(scrollable, lv_palette_darken(LV_PALETTE_BLUE_GREY, 4), 0); // Optional background color
+    lv_obj_set_style_bg_color(scrollable, lv_color_black(), 0); // Optional background color
 
     lv_obj_t *btn;
     lv_obj_t *label;
@@ -589,7 +590,7 @@ void UserSettings::createSlider(const char *sliderName, int32_t minRange, int32_
     lv_obj_set_scroll_dir(scrollable, LV_DIR_VER);         // Enable vertical scrolling
     lv_obj_set_scrollbar_mode(scrollable, LV_SCROLLBAR_MODE_AUTO); // Show scrollbar when scrolling
     lv_obj_set_style_pad_all(scrollable, 10, 0);           // Add padding for aesthetics
-    lv_obj_set_style_bg_color(scrollable, lv_color_black(), 0); // Optional background color
+    lv_obj_set_style_bg_color(scrollable, lv_color_black(), 0); // Blank background color
 
     // Show the title of the screen at the top middle
     lv_obj_t *label = lv_label_create(scrollable);
@@ -1128,6 +1129,7 @@ static void handleBrightnessSelected(lv_event_t *e) {
 
     int32_t newIndex = lv_obj_get_index(act_cb);
     float brightnessValue = (float)newIndex * 10 + 10;
+
     if (lcd_display_brightness_set(brightnessValue) == ESP_OK) {
         *brightnessSetting = (uint8_t)newIndex;
         ESP_LOGI(TAG, "New display brightness setting is %ld (%f%%)", newIndex, brightnessValue);

@@ -26,12 +26,20 @@
 #include "esp_log.h"
 #include "esp_lvgl_port.h"
 
-#define ATTITUDE_INDICATOR_LINE_WIDTH 8
-#define ATTITUDE_RULER_LINE_WIDTH 2
+#define ATTITUDE_INDICATOR_LINE_HEIGHT 14
+#define ATTITUDE_INDICATOR_BORDER_WIDTH 5
+#define ATTITUDE_INDICATOR_LINE_WIDTH 100
+// #define ATTITUDE_ARROWS_SIZE 100
+// #define ATTITUDE_ARROWS_PIVOT_LOCATION 50
+#define ATTITUDE_ARROWS_SIZE 100
+#define ATTITUDE_ARROWS_PIVOT_LOCATION 50
+#define ATTITUDE_RULER_LINE_WIDTH 4
 #define ATTITUDE_PORTRAIT_VERTICAL_OFFSET -30
 #define ATTITUDE_LANDSCAPE_VERTICAL_OFFSET -10
-#define ATTITUDE_FRAME_COLOR 0x222222
-#define ATTITUDE_RESOLUTION_FACTOR 1.25 // Move 1.25 pixels per cent of change
+// #define ATTITUDE_GROUND_COLOR 0x8B4513
+#define ATTITUDE_GROUND_COLOR 0x000000
+#define ATTITUDE_SKY_COLOR 0x87CEEB
+#define ATTITUDE_RESOLUTION_FACTOR 2.5 // Move 2.5 pixels for every cent of change
 
 static const char *TAG = "ATTITUDE_UI";
 
@@ -39,15 +47,15 @@ extern UserSettings *userSettings;
 extern lv_coord_t screen_width;
 extern lv_coord_t screen_height;
 
-LV_IMG_DECLARE(tuner_font_image_a)
-LV_IMG_DECLARE(tuner_font_image_b)
-LV_IMG_DECLARE(tuner_font_image_c)
-LV_IMG_DECLARE(tuner_font_image_d)
-LV_IMG_DECLARE(tuner_font_image_e)
-LV_IMG_DECLARE(tuner_font_image_f)
-LV_IMG_DECLARE(tuner_font_image_g)
-LV_IMG_DECLARE(tuner_font_image_none)
-LV_IMG_DECLARE(tuner_font_image_sharp)
+LV_IMG_DECLARE(tuner_font_image_a2x)
+LV_IMG_DECLARE(tuner_font_image_b2x)
+LV_IMG_DECLARE(tuner_font_image_c2x)
+LV_IMG_DECLARE(tuner_font_image_d2x)
+LV_IMG_DECLARE(tuner_font_image_e2x)
+LV_IMG_DECLARE(tuner_font_image_f2x)
+LV_IMG_DECLARE(tuner_font_image_g2x)
+LV_IMG_DECLARE(tuner_font_image_none2x)
+LV_IMG_DECLARE(tuner_font_image_sharp2x)
 
 //
 // Function Definitions
@@ -55,7 +63,7 @@ LV_IMG_DECLARE(tuner_font_image_sharp)
 void attitude_create_slider(lv_obj_t * parent);
 void attitude_create_slider_ruler(lv_obj_t *parent);
 void attitude_create_labels(lv_obj_t * parent);
-void attitude_create_frame(lv_obj_t * parent);
+void attitude_create_arrows(lv_obj_t * parent);
 void attitude_update_note_name(TunerNoteName new_value);
 void attitude_start_note_fade_animation();
 void attitude_stop_note_fade_animation();
@@ -111,7 +119,7 @@ void attitude_gui_init(lv_obj_t *screen) {
     }
     attitude_parent_screen = screen;
     attitude_create_slider(screen);
-    attitude_create_frame(screen);
+    attitude_create_arrows(screen);
     attitude_create_labels(screen);
 }
 
@@ -173,12 +181,15 @@ void attitude_create_slider(lv_obj_t * parent) {
     // the slider is moved.
     lv_obj_t *background_sky = lv_obj_create(parent);
     lv_obj_set_size(background_sky, lv_pct(100), lv_pct(50));
-    lv_obj_set_style_bg_color(background_sky, lv_color_hex(0x87CEEB), 0);
+    lv_obj_set_style_bg_color(background_sky, lv_color_hex(ATTITUDE_SKY_COLOR), 0);
+    lv_obj_set_style_radius(background_sky, 0, 0);
     lv_obj_align(background_sky, LV_ALIGN_TOP_LEFT, 0, 0);
 
     lv_obj_t *background_ground = lv_obj_create(parent);
     lv_obj_set_size(background_ground, lv_pct(100), lv_pct(50));
-    lv_obj_set_style_bg_color(background_ground, lv_color_hex(0x8B4513), 0);
+    lv_obj_set_style_bg_color(background_ground, lv_color_hex(ATTITUDE_GROUND_COLOR), 0);
+    lv_obj_set_style_radius(background_ground, 0, 0);
+    lv_obj_set_style_border_opa(background_ground, 0, 0);
     lv_obj_align(background_ground, LV_ALIGN_BOTTOM_LEFT, 0, 0);
 
     // Create the container for the slider
@@ -194,16 +205,18 @@ void attitude_create_slider(lv_obj_t * parent) {
     lv_obj_t *sky = lv_obj_create(attitude_slider);
     lv_obj_set_style_border_width(sky, 0, 0);
     lv_obj_set_size(sky, lv_pct(100), lv_pct(50));
-    lv_obj_set_style_bg_color(sky, lv_color_hex(0x87CEEB), 0);
-    lv_obj_align(sky, LV_ALIGN_TOP_LEFT, 0, -1); // Offset by 1 pixel to get the slider white background to show through and look like the horizon line
+    lv_obj_set_style_bg_color(sky, lv_color_hex(ATTITUDE_SKY_COLOR), 0);
+    lv_obj_set_style_radius(background_sky, 0, 0);
+    lv_obj_align(sky, LV_ALIGN_TOP_LEFT, 0, -2); // Offset by 2 pixels to get the slider white background to show through and look like the horizon line
 
     // Create the bottom box that represents the ground
     lv_obj_t *ground = lv_obj_create(attitude_slider);
     lv_obj_set_style_border_width(ground, 0, 0);
     lv_obj_set_size(ground, lv_pct(100), lv_pct(50));
-    lv_obj_set_style_bg_color(ground, lv_color_hex(0x8B4513), 0); // brownish
+    lv_obj_set_style_bg_color(ground, lv_color_hex(ATTITUDE_GROUND_COLOR), 0); // brownish
+    lv_obj_set_style_radius(ground, 0, 0);
     // lv_obj_set_style_bg_color(ground, lv_color_black(), 0);
-    lv_obj_align(ground, LV_ALIGN_BOTTOM_LEFT, 0, 1); // Offset by 1 pixel to get the slider white background to show through
+    lv_obj_align(ground, LV_ALIGN_BOTTOM_LEFT, 0, 2); // Offset by 2 pixels to get the slider white background to show through
 
     attitude_create_slider_ruler(attitude_slider);
 }
@@ -272,12 +285,12 @@ void attitude_create_labels(lv_obj_t * parent) {
 
     // Note Name Image (the big name in the middle of the screen)
     attitude_note_img = lv_image_create(attitude_note_img_container);
-    lv_image_set_src(attitude_note_img, &tuner_font_image_none);
+    lv_image_set_src(attitude_note_img, &tuner_font_image_none2x);
     lv_obj_center(attitude_note_img);
 
     attitude_sharp_img = lv_image_create(attitude_note_img_container);
-    lv_image_set_src(attitude_sharp_img, &tuner_font_image_sharp);
-    lv_obj_align_to(attitude_sharp_img, attitude_note_img, LV_ALIGN_TOP_RIGHT, 20, -15);
+    lv_image_set_src(attitude_sharp_img, &tuner_font_image_sharp2x);
+    lv_obj_align_to(attitude_sharp_img, attitude_note_img, LV_ALIGN_TOP_RIGHT, 40, -30);
     lv_obj_add_flag(attitude_sharp_img, LV_OBJ_FLAG_HIDDEN);
     
     // Enable recoloring on the images
@@ -295,7 +308,7 @@ void attitude_create_labels(lv_obj_t * parent) {
     // MUTE label (for monitoring mode)
     attitude_mute_label = lv_label_create(parent);
     lv_label_set_text_static(attitude_mute_label, "MUTE");
-    lv_obj_set_style_text_font(attitude_mute_label, &lv_font_montserrat_18, 0);
+    lv_obj_set_style_text_font(attitude_mute_label, &lv_font_montserrat_36, 0);
     lv_obj_align(attitude_mute_label, LV_ALIGN_TOP_LEFT, 2, 0);
     lv_obj_add_flag(attitude_mute_label, LV_OBJ_FLAG_HIDDEN);
 
@@ -309,7 +322,7 @@ void attitude_create_labels(lv_obj_t * parent) {
     lv_obj_align(attitude_frequency_label, LV_ALIGN_BOTTOM_RIGHT, -2, 0);
 
     lv_style_init(&attitude_frequency_label_style);
-    lv_style_set_text_font(&attitude_frequency_label_style, &lv_font_montserrat_18);
+    lv_style_set_text_font(&attitude_frequency_label_style, &lv_font_montserrat_36);
     lv_obj_add_style(attitude_frequency_label, &attitude_frequency_label_style, 0);
     lv_obj_add_flag(attitude_frequency_label, LV_OBJ_FLAG_HIDDEN);
 
@@ -317,7 +330,7 @@ void attitude_create_labels(lv_obj_t * parent) {
     attitude_cents_label = lv_label_create(parent);
     
     lv_style_init(&attitude_cents_label_style);
-    lv_style_set_text_font(&attitude_cents_label_style, &lv_font_montserrat_18);
+    lv_style_set_text_font(&attitude_cents_label_style, &lv_font_montserrat_36);
     lv_obj_add_style(attitude_cents_label, &attitude_cents_label_style, 0);
 
     lv_obj_set_width(attitude_cents_label, screen_width / 2);
@@ -326,102 +339,53 @@ void attitude_create_labels(lv_obj_t * parent) {
     lv_obj_add_flag(attitude_cents_label, LV_OBJ_FLAG_HIDDEN);
 }
 
-void attitude_create_frame(lv_obj_t * parent) {
-    // Create the frame around the slider
-    lv_obj_t *frame = lv_obj_create(parent);
-    lv_obj_set_size(frame, lv_pct(100), lv_pct(100));
-    lv_obj_set_style_bg_opa(frame, LV_OPA_0, 0);
-    lv_obj_set_style_border_width(frame, 25, 0);
-    lv_obj_set_style_border_color(frame, lv_color_hex(ATTITUDE_FRAME_COLOR), 0);
-    lv_obj_set_style_border_side(frame, LV_BORDER_SIDE_FULL, 0);
-    lv_obj_set_style_radius(frame, 0, 0);
-    lv_obj_align(frame, LV_ALIGN_TOP_LEFT, 0, 0);
-
-    // Create some arcs so that it looks more interesting
-    lv_obj_t *arc = lv_arc_create(parent);
-    lv_obj_remove_style(arc, NULL, LV_PART_KNOB);
-    lv_obj_remove_flag(arc, LV_OBJ_FLAG_CLICKABLE);
-    lv_obj_set_size(arc, screen_width, screen_width);
-    lv_obj_set_style_arc_width(arc, 25, LV_PART_INDICATOR);
-    lv_obj_set_style_arc_color(arc, lv_color_hex(ATTITUDE_FRAME_COLOR), LV_PART_INDICATOR);
-    lv_obj_align(arc, LV_ALIGN_TOP_MID, 0, attitude_is_landscape ? -50 : 0);
-    lv_arc_set_angles(arc, 180, 360);
-    lv_obj_set_style_arc_opa(arc, LV_OPA_0, 0); // hide the background track
-
-    if (!attitude_is_landscape) {
-        arc = lv_arc_create(parent);
-        lv_obj_remove_style(arc, NULL, LV_PART_KNOB);
-        lv_obj_remove_flag(arc, LV_OBJ_FLAG_CLICKABLE);
-        lv_obj_set_size(arc, screen_width, screen_width);
-        lv_obj_set_style_arc_width(arc, 25, LV_PART_INDICATOR);
-        lv_obj_set_style_arc_color(arc, lv_color_hex(ATTITUDE_FRAME_COLOR), LV_PART_INDICATOR);
-        lv_obj_align(arc, LV_ALIGN_TOP_MID, 0, -25); // Cover up the top two corners
-        lv_arc_set_angles(arc, 180, 360);
-        lv_obj_set_style_arc_opa(arc, LV_OPA_0, 0); // hide the background track    
-    }
-
-    arc = lv_arc_create(parent);
-    lv_obj_remove_style(arc, NULL, LV_PART_KNOB);
-    lv_obj_remove_flag(arc, LV_OBJ_FLAG_CLICKABLE);
-    lv_obj_set_size(arc, screen_width, screen_width);
-    lv_obj_set_style_arc_width(arc, 25, LV_PART_INDICATOR);
-    lv_obj_set_style_arc_color(arc, lv_color_hex(ATTITUDE_FRAME_COLOR), LV_PART_INDICATOR);
-    lv_obj_align(arc, LV_ALIGN_BOTTOM_MID, 0, attitude_is_landscape ? 50 : 0);
-    lv_arc_set_angles(arc, 0, 180);
-    lv_obj_set_style_arc_opa(arc, LV_OPA_0, 0); // hide the background track    
-
-    if (!attitude_is_landscape) {
-        arc = lv_arc_create(parent);
-        lv_obj_remove_style(arc, NULL, LV_PART_KNOB);
-        lv_obj_remove_flag(arc, LV_OBJ_FLAG_CLICKABLE);
-        lv_obj_set_size(arc, screen_width, screen_width);
-        lv_obj_set_style_arc_width(arc, 25, LV_PART_INDICATOR);
-        lv_obj_set_style_arc_color(arc, lv_color_hex(ATTITUDE_FRAME_COLOR), LV_PART_INDICATOR);
-        lv_obj_align(arc, LV_ALIGN_BOTTOM_MID, 0, 25); // Cover up the remaining corners
-        lv_arc_set_angles(arc, 0, 180);
-        lv_obj_set_style_arc_opa(arc, LV_OPA_0, 0); // hide the background track    
-    }
-
+void attitude_create_arrows(lv_obj_t * parent) {
+    // lv_obj_add_flag(parent, LV_OBJ_FLAG_OVERFLOW_VISIBLE);
     // Show tick marks on the left and right sides of the frame
     attitude_left_tick = lv_obj_create(parent);
-    lv_obj_set_size(attitude_left_tick, 50, 50);
+    lv_obj_set_size(attitude_left_tick, ATTITUDE_ARROWS_SIZE, ATTITUDE_ARROWS_SIZE);
     lv_obj_set_style_border_width(attitude_left_tick, 0, 0);
     lv_obj_set_style_bg_color(attitude_left_tick, lv_color_white(), 0);
     lv_obj_set_style_radius(attitude_left_tick, 0, 0);
-    lv_obj_set_style_transform_pivot_x(attitude_left_tick, 25, 0);
-    lv_obj_set_style_transform_pivot_y(attitude_left_tick, 25, 0);
+    lv_obj_set_style_transform_pivot_x(attitude_left_tick, ATTITUDE_ARROWS_PIVOT_LOCATION, 0);
+    lv_obj_set_style_transform_pivot_y(attitude_left_tick, ATTITUDE_ARROWS_PIVOT_LOCATION, 0);
     lv_obj_set_style_transform_angle(attitude_left_tick, 450, 0);    
-    lv_obj_align(attitude_left_tick, LV_ALIGN_LEFT_MID, -35, attitude_is_landscape ? ATTITUDE_LANDSCAPE_VERTICAL_OFFSET : ATTITUDE_PORTRAIT_VERTICAL_OFFSET);
+    lv_obj_align(attitude_left_tick, LV_ALIGN_LEFT_MID, -ATTITUDE_ARROWS_PIVOT_LOCATION, attitude_is_landscape ? ATTITUDE_LANDSCAPE_VERTICAL_OFFSET : ATTITUDE_PORTRAIT_VERTICAL_OFFSET);
 
     attitude_right_tick = lv_obj_create(parent);
-    lv_obj_set_size(attitude_right_tick, 50, 50);
+    lv_obj_set_size(attitude_right_tick, ATTITUDE_ARROWS_SIZE, ATTITUDE_ARROWS_SIZE);
     lv_obj_set_style_border_width(attitude_right_tick, 0, 0);
     lv_obj_set_style_bg_color(attitude_right_tick, lv_color_white(), 0);
     lv_obj_set_style_radius(attitude_right_tick, 0, 0);
-    lv_obj_set_style_transform_pivot_x(attitude_right_tick, 25, 0);
-    lv_obj_set_style_transform_pivot_y(attitude_right_tick, 25, 0);
+    lv_obj_set_style_transform_pivot_x(attitude_right_tick, ATTITUDE_ARROWS_PIVOT_LOCATION, 0);
+    lv_obj_set_style_transform_pivot_y(attitude_right_tick, ATTITUDE_ARROWS_PIVOT_LOCATION, 0);
     lv_obj_set_style_transform_angle(attitude_right_tick, 450, 0);
-    lv_obj_align(attitude_right_tick, LV_ALIGN_RIGHT_MID, 35, attitude_is_landscape ? ATTITUDE_LANDSCAPE_VERTICAL_OFFSET : ATTITUDE_PORTRAIT_VERTICAL_OFFSET);
+    lv_obj_align(attitude_right_tick, LV_ALIGN_RIGHT_MID, ATTITUDE_ARROWS_PIVOT_LOCATION, attitude_is_landscape ? ATTITUDE_LANDSCAPE_VERTICAL_OFFSET : ATTITUDE_PORTRAIT_VERTICAL_OFFSET);
 
     // Create the center lines
     lv_obj_t *center_line_left = lv_obj_create(parent);
-    lv_obj_set_size(center_line_left, 50, ATTITUDE_INDICATOR_LINE_WIDTH);
-    lv_obj_set_style_border_width(center_line_left, 0, 0);
-    lv_obj_set_style_bg_color(center_line_left, lv_palette_main(LV_PALETTE_ORANGE), 0);
-    lv_obj_align(center_line_left, LV_ALIGN_CENTER, -50, attitude_is_landscape ? ATTITUDE_LANDSCAPE_VERTICAL_OFFSET : ATTITUDE_PORTRAIT_VERTICAL_OFFSET);
+    lv_obj_set_size(center_line_left, ATTITUDE_INDICATOR_LINE_WIDTH, ATTITUDE_INDICATOR_LINE_HEIGHT);
+    lv_obj_set_style_border_color(center_line_left, lv_palette_main(LV_PALETTE_ORANGE), 0);
+    lv_obj_set_style_border_width(center_line_left, ATTITUDE_INDICATOR_BORDER_WIDTH, 0);
+    // lv_obj_set_style_bg_color(center_line_left, lv_palette_main(LV_PALETTE_ORANGE), 0);
+    lv_obj_set_style_bg_opa(center_line_left, LV_OPA_0, 0);
+    lv_obj_set_scrollbar_mode(center_line_left, LV_SCROLLBAR_MODE_OFF);
+    lv_obj_align(center_line_left, LV_ALIGN_CENTER, -ATTITUDE_INDICATOR_LINE_WIDTH, attitude_is_landscape ? ATTITUDE_LANDSCAPE_VERTICAL_OFFSET : ATTITUDE_PORTRAIT_VERTICAL_OFFSET);
 
     lv_obj_t *center_line_right = lv_obj_create(parent);
-    lv_obj_set_size(center_line_right, 50, ATTITUDE_INDICATOR_LINE_WIDTH);
+    lv_obj_set_size(center_line_right, ATTITUDE_INDICATOR_LINE_WIDTH, ATTITUDE_INDICATOR_LINE_HEIGHT);
     lv_obj_set_style_border_width(center_line_right, 0, 0);
     lv_obj_set_style_bg_color(center_line_right, lv_palette_main(LV_PALETTE_ORANGE), 0);
-    lv_obj_align(center_line_right, LV_ALIGN_CENTER, 50, attitude_is_landscape ? ATTITUDE_LANDSCAPE_VERTICAL_OFFSET : ATTITUDE_PORTRAIT_VERTICAL_OFFSET);
+    lv_obj_set_scrollbar_mode(center_line_right, LV_SCROLLBAR_MODE_OFF);
+    lv_obj_align(center_line_right, LV_ALIGN_CENTER, ATTITUDE_INDICATOR_LINE_WIDTH, attitude_is_landscape ? ATTITUDE_LANDSCAPE_VERTICAL_OFFSET : ATTITUDE_PORTRAIT_VERTICAL_OFFSET);
 
     // Create the center dot
     lv_obj_t *center_dot = lv_obj_create(parent);
-    lv_obj_set_size(center_dot, ATTITUDE_INDICATOR_LINE_WIDTH, ATTITUDE_INDICATOR_LINE_WIDTH);
+    lv_obj_set_size(center_dot, ATTITUDE_INDICATOR_LINE_HEIGHT, ATTITUDE_INDICATOR_LINE_HEIGHT);
     lv_obj_set_style_border_width(center_dot, 0, 0);
     lv_obj_set_style_bg_color(center_dot, lv_palette_main(LV_PALETTE_ORANGE), 0);
-    lv_obj_set_style_radius(center_dot, ATTITUDE_INDICATOR_LINE_WIDTH / 2, 0);
+    lv_obj_set_style_radius(center_dot, ATTITUDE_INDICATOR_LINE_HEIGHT/ 2, 0);
+    lv_obj_set_scrollbar_mode(center_dot, LV_SCROLLBAR_MODE_OFF);
     lv_obj_align(center_dot, LV_ALIGN_CENTER, 0, attitude_is_landscape ? ATTITUDE_LANDSCAPE_VERTICAL_OFFSET : ATTITUDE_PORTRAIT_VERTICAL_OFFSET);
 }
 
@@ -436,33 +400,33 @@ void attitude_update_note_name(TunerNoteName new_value) {
     case NOTE_A_SHARP:
         show_sharp_symbol = true;
     case NOTE_A:
-        img_desc = &tuner_font_image_a;
+        img_desc = &tuner_font_image_a2x;
         break;
     case NOTE_B:
-        img_desc = &tuner_font_image_b;
+        img_desc = &tuner_font_image_b2x;
         break;
     case NOTE_C_SHARP:
         show_sharp_symbol = true;
     case NOTE_C:
-        img_desc = &tuner_font_image_c;
+        img_desc = &tuner_font_image_c2x;
         break;
     case NOTE_D_SHARP:
         show_sharp_symbol = true;
     case NOTE_D:
-        img_desc = &tuner_font_image_d;
+        img_desc = &tuner_font_image_d2x;
         break;
     case NOTE_E:
-        img_desc = &tuner_font_image_e;
+        img_desc = &tuner_font_image_e2x;
         break;
     case NOTE_F_SHARP:
         show_sharp_symbol = true;
     case NOTE_F:
-        img_desc = &tuner_font_image_f;
+        img_desc = &tuner_font_image_f2x;
         break;
     case NOTE_G_SHARP:
         show_sharp_symbol = true;
     case NOTE_G:
-        img_desc = &tuner_font_image_g;
+        img_desc = &tuner_font_image_g2x;
         break;
     case NOTE_NONE:
         show_note_fade_anim = true;
@@ -524,7 +488,7 @@ void attitude_last_note_anim_completed_cb(lv_anim_t *) {
     // The animation has completed so hide the note name and set
     // the opacity back to 100%.
     lv_obj_add_flag(attitude_sharp_img, LV_OBJ_FLAG_HIDDEN);
-    lv_image_set_src(attitude_note_img, &tuner_font_image_none);
+    lv_image_set_src(attitude_note_img, &tuner_font_image_none2x);
     attitude_last_displayed_note = NOTE_NONE;
 
     attitude_stop_note_fade_animation();
