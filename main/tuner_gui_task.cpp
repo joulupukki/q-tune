@@ -267,11 +267,13 @@ void tuner_gui_task(void *pvParameter) {
     // buf2 = malloc(DISPLAY_BUFFER_SIZE);
     // assert(buf2);
 
-    buf1 = heap_caps_malloc(DISPLAY_BUFFER_SIZE, MALLOC_CAP_SPIRAM);
+    // buf1 = heap_caps_malloc(DISPLAY_BUFFER_SIZE, MALLOC_CAP_SPIRAM);
+    buf1 = heap_caps_malloc(DISPLAY_BUFFER_SIZE, MALLOC_CAP_INTERNAL | MALLOC_CAP_DMA);
     // buf1 = heap_caps_malloc(buf_size, MALLOC_CAP_SPIRAM);
     // buf1 = heap_caps_malloc(buf_size, MALLOC_CAP_DMA);
     assert(buf1);
-    buf2 = heap_caps_malloc(DISPLAY_BUFFER_SIZE, MALLOC_CAP_SPIRAM);
+    // buf2 = heap_caps_malloc(DISPLAY_BUFFER_SIZE, MALLOC_CAP_SPIRAM);
+    buf2 = heap_caps_malloc(DISPLAY_BUFFER_SIZE, MALLOC_CAP_INTERNAL | MALLOC_CAP_DMA);
     // buf2 = heap_caps_malloc(buf_size, MALLOC_CAP_SPIRAM);
     // buf2 = heap_caps_malloc(buf_size, MALLOC_CAP_DMA);
     assert(buf2);
