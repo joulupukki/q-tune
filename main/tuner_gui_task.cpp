@@ -380,12 +380,15 @@ void tuner_gui_task(void *pvParameter) {
             // Release the mutex
             lvgl_port_unlock();
             // vTaskDelay(pdMS_TO_TICKS(125)); // Yields to reset watchdog in milliseconds
-            vTaskDelay(pdMS_TO_TICKS(33)); // Limits to ~30 FPS (1000ms / 33ms = ~30)
+            // vTaskDelay(pdMS_TO_TICKS(33)); // Limits to ~30 FPS (1000ms / 33ms = ~30)
             // vTaskDelay(pdMS_TO_TICKS(20));
         } else {
             // Nothing to do
-            vTaskDelay(pdMS_TO_TICKS(200));
+            // vTaskDelay(pdMS_TO_TICKS(200));
         }
+        lv_timer_handler();
+        // vTaskDelay(pdMS_TO_TICKS(33));
+        vTaskDelay(pdMS_TO_TICKS(10));
     }
     vTaskDelay(portMAX_DELAY);
 }

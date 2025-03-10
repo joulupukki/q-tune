@@ -56,11 +56,12 @@
 #define EXAMPLE_PIN_NUM_DATA15         17 // R4
 #define EXAMPLE_PIN_NUM_DISP_EN        -1
 
-#if CONFIG_EXAMPLE_DOUBLE_FB
+// #if CONFIG_EXAMPLE_DOUBLE_FB
+// #define EXAMPLE_LCD_NUM_FB             2
+// #else
+// #define EXAMPLE_LCD_NUM_FB             1
+// #endif 
 #define EXAMPLE_LCD_NUM_FB             2
-#else
-#define EXAMPLE_LCD_NUM_FB             1
-#endif 
 
 
 #define LEDC_TIMER              LEDC_TIMER_0
