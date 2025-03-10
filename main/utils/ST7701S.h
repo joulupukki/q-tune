@@ -28,8 +28,8 @@
 
 // #define EXAMPLE_LCD_PIXEL_CLOCK_HZ     (30 * 1000 * 1000)
 // #define EXAMPLE_LCD_PIXEL_CLOCK_HZ     (20 * 1000 * 1000) // makes things work without glitches
-// #define EXAMPLE_LCD_PIXEL_CLOCK_HZ     (24 * 1000 * 1000) // makes things work without glitches
-#define EXAMPLE_LCD_PIXEL_CLOCK_HZ     (26 * 1000 * 1000) // makes things work without glitches
+#define EXAMPLE_LCD_PIXEL_CLOCK_HZ     (24 * 1000 * 1000) // makes things work without glitches
+// #define EXAMPLE_LCD_PIXEL_CLOCK_HZ     (26 * 1000 * 1000) // makes things work without glitches
 #define EXAMPLE_LCD_BK_LIGHT_ON_LEVEL  1
 #define EXAMPLE_LCD_BK_LIGHT_OFF_LEVEL !EXAMPLE_LCD_BK_LIGHT_ON_LEVEL
 #define EXAMPLE_PIN_NUM_BK_LIGHT       6

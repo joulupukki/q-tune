@@ -193,13 +193,13 @@ esp_lcd_panel_handle_t lcd_panel;
 /// @param area Pointer to the area to be flushed.
 /// @param px_map Pointer to the pixel data to be drawn.
 void lvgl_port_flush_cb(lv_display_t *display, const lv_area_t *area, uint8_t *px_map) {
-    // esp_lcd_panel_draw_bitmap(lcd_panel, area->x1, area->y1, area->x2 + 1, area->y2 + 1, px_map);
-    uint8_t *aligned_px_map = (uint8_t *)((uintptr_t)px_map & ~0x3);
-    // Use DMA for transferring data to the LCD
-    esp_err_t ret = esp_lcd_panel_draw_bitmap(lcd_panel, area->x1, area->y1, area->x2 + 1, area->y2 + 1, aligned_px_map);
-    if (ret != ESP_OK) {
-        ESP_LOGE(TAG, "Failed to draw bitmap: %s", esp_err_to_name(ret));
-    }    
+    esp_lcd_panel_draw_bitmap(lcd_panel, area->x1, area->y1, area->x2 + 1, area->y2 + 1, px_map);
+    // uint8_t *aligned_px_map = (uint8_t *)((uintptr_t)px_map & ~0x3);
+    // // Use DMA for transferring data to the LCD
+    // esp_err_t ret = esp_lcd_panel_draw_bitmap(lcd_panel, area->x1, area->y1, area->x2 + 1, area->y2 + 1, aligned_px_map);
+    // if (ret != ESP_OK) {
+    //     ESP_LOGE(TAG, "Failed to draw bitmap: %s", esp_err_to_name(ret));
+    // }    
 
 #if CONFIG_EXAMPLE_AVOID_TEAR_EFFECT_WITH_SEM
     xSemaphoreGive(sem_gui_ready);
