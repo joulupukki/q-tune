@@ -417,6 +417,7 @@ void strobe_switch_to_none_note(lv_timer_t *timer) {
     strobe_fade_timer = NULL;
 
     lv_image_set_src(strobe_note_img, &tuner_font_image_none2x);
+    lv_obj_add_flag(strobe_sharp_img, LV_OBJ_FLAG_HIDDEN);
 
     lvgl_port_unlock();
 

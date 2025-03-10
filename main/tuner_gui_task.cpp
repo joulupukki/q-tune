@@ -339,6 +339,8 @@ void tuner_gui_task(void *pvParameter) {
     //     vTaskDelay(pdMS_TO_TICKS(200));
     // }
 
+    ESP_LOGI(TAG, "DOUBLE BUFFERED? %d", lv_display_is_double_buffered(lvgl_display));
+
     float cents;
 
     // Use old_tuner_ui_state to keep track of the old state locally (in this
