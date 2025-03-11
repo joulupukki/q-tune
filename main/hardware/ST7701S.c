@@ -220,12 +220,10 @@ SemaphoreHandle_t sem_vsync_end;
 SemaphoreHandle_t sem_gui_ready;
 #endif
 
-
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 static bool example_on_vsync_event(esp_lcd_panel_handle_t panel, const esp_lcd_rgb_panel_event_data_t *event_data, void *user_data)
 {
-    ESP_LOGI("BHT *****************", "HERE **********");
     BaseType_t high_task_awoken = pdFALSE;
 #if CONFIG_EXAMPLE_AVOID_TEAR_EFFECT_WITH_SEM
     if (xSemaphoreTakeFromISR(sem_gui_ready, &high_task_awoken) == pdTRUE) {
@@ -235,7 +233,7 @@ static bool example_on_vsync_event(esp_lcd_panel_handle_t panel, const esp_lcd_r
     return high_task_awoken == pdTRUE;
 }
 
-esp_err_t LCD_Init(esp_lcd_panel_io_handle_t *lcd_io, esp_lcd_panel_handle_t *panel_handle)
+esp_err_t LCD_Init(esp_lcd_panel_handle_t *panel_handle)
 {
     /********************* LCD *********************/
     ST7701S_reset();
@@ -257,39 +255,39 @@ esp_err_t LCD_Init(esp_lcd_panel_io_handle_t *lcd_io, esp_lcd_panel_handle_t *pa
     esp_lcd_rgb_panel_config_t panel_config = {
         .data_width = 16, // RGB565 in parallel mode, thus 16bit in width
         .psram_trans_align = 64,
-        .num_fbs = EXAMPLE_LCD_NUM_FB,
+        .num_fbs = LCD_NUM_OF_FRAME_BUFFERS,
 // #if CONFIG_EXAMPLE_USE_BOUNCE_BUFFER
-        .bounce_buffer_size_px = 10 * EXAMPLE_LCD_H_RES,
-        // .bounce_buffer_size_px = 40 * EXAMPLE_LCD_H_RES,
+        .bounce_buffer_size_px = 10 * LCD_H_RES,
+        // .bounce_buffer_size_px = 40 * LCD_H_RES,
 // #endif
         .clk_src = LCD_CLK_SRC_DEFAULT,
-        .disp_gpio_num = EXAMPLE_PIN_NUM_DISP_EN,
-        .pclk_gpio_num = EXAMPLE_PIN_NUM_PCLK,
-        .vsync_gpio_num = EXAMPLE_PIN_NUM_VSYNC,
-        .hsync_gpio_num = EXAMPLE_PIN_NUM_HSYNC,
-        .de_gpio_num = EXAMPLE_PIN_NUM_DE,
+        .disp_gpio_num = PIN_NUM_DISP_EN,
+        .pclk_gpio_num = PIN_NUM_PCLK,
+        .vsync_gpio_num = PIN_NUM_VSYNC,
+        .hsync_gpio_num = PIN_NUM_HSYNC,
+        .de_gpio_num = PIN_NUM_DE,
         .data_gpio_nums = {
-            EXAMPLE_PIN_NUM_DATA0,
-            EXAMPLE_PIN_NUM_DATA1,
-            EXAMPLE_PIN_NUM_DATA2,
-            EXAMPLE_PIN_NUM_DATA3,
-            EXAMPLE_PIN_NUM_DATA4,
-            EXAMPLE_PIN_NUM_DATA5,
-            EXAMPLE_PIN_NUM_DATA6,
-            EXAMPLE_PIN_NUM_DATA7,
-            EXAMPLE_PIN_NUM_DATA8,
-            EXAMPLE_PIN_NUM_DATA9,
-            EXAMPLE_PIN_NUM_DATA10,
-            EXAMPLE_PIN_NUM_DATA11,
-            EXAMPLE_PIN_NUM_DATA12,
-            EXAMPLE_PIN_NUM_DATA13,
-            EXAMPLE_PIN_NUM_DATA14,
-            EXAMPLE_PIN_NUM_DATA15,
+            PIN_NUM_DATA0,
+            PIN_NUM_DATA1,
+            PIN_NUM_DATA2,
+            PIN_NUM_DATA3,
+            PIN_NUM_DATA4,
+            PIN_NUM_DATA5,
+            PIN_NUM_DATA6,
+            PIN_NUM_DATA7,
+            PIN_NUM_DATA8,
+            PIN_NUM_DATA9,
+            PIN_NUM_DATA10,
+            PIN_NUM_DATA11,
+            PIN_NUM_DATA12,
+            PIN_NUM_DATA13,
+            PIN_NUM_DATA14,
+            PIN_NUM_DATA15,
         },
         .timings = {
-            .pclk_hz = EXAMPLE_LCD_PIXEL_CLOCK_HZ,
-            .h_res = EXAMPLE_LCD_H_RES,
-            .v_res = EXAMPLE_LCD_V_RES, 
+            .pclk_hz = LCD_PIXEL_CLOCK_HZ,
+            .h_res = LCD_H_RES,
+            .v_res = LCD_V_RES, 
             .hsync_back_porch = 10,
             .hsync_front_porch = 50,
             .hsync_pulse_width = 8,
@@ -301,28 +299,6 @@ esp_err_t LCD_Init(esp_lcd_panel_io_handle_t *lcd_io, esp_lcd_panel_handle_t *pa
         .flags.fb_in_psram = true, // allocate frame buffer in PSRAM
     };
 
-
-
-    // esp_lcd_panel_io_i2c_config_t io_config = {
-    //     .scl_speed_hz = I2C_MASTER_FREQ_HZ,
-    //     .
-
-    // };
-
-    // esp_lcd_new_panel_io_i2c_v2(i2c_bus_handle, const esp_lcd_panel_io_i2c_config_t *io_config, esp_lcd_panel_io_handle_t *ret_io))
-    // ST7701S_handle st7701s = ST7701S_newObject(LCD_MOSI, LCD_SCLK, LCD_CS, SPI2_HOST, SPI_METHOD);
-
-    // esp_lcd_panel_io_spi_config_t io_config = {
-    //     .cs_gpio_num = LCD_CS,
-    //     .dc_gpio_num = -1,
-    //     .spi_mode = 0,
-    //     .pclk_hz = EXAMPLE_LCD_PIXEL_CLOCK_HZ,
-    //     .trans_queue_depth = 10, // Increase queue depth for better performance
-    //     .lcd_cmd_bits = 1,
-    //     .lcd_param_bits = 8,
-    // };
-    // ESP_ERROR_CHECK(esp_lcd_new_panel_io_spi(SPI2_HOST, &io_config, lcd_io));
-    
     ESP_ERROR_CHECK(esp_lcd_new_rgb_panel(&panel_config, panel_handle));
 
     ESP_LOGI(TAG, "Initialize RGB LCD panel");
@@ -333,7 +309,7 @@ esp_err_t LCD_Init(esp_lcd_panel_io_handle_t *lcd_io, esp_lcd_panel_handle_t *pa
     esp_lcd_rgb_panel_event_callbacks_t cbs = {
         .on_vsync = example_on_vsync_event,
     };
-    ESP_ERROR_CHECK(esp_lcd_rgb_panel_register_event_callbacks(panel_handle, &cbs, NULL));
+    ESP_ERROR_CHECK(esp_lcd_rgb_panel_register_event_callbacks(*panel_handle, &cbs, NULL));
 
     ST7701S_CS_Dis();
     Backlight_Init();

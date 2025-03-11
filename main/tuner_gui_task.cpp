@@ -182,7 +182,7 @@ TunerGUIInterface get_active_gui() {
     return active_gui;
 }
 
-esp_lcd_panel_io_handle_t lcd_io;
+// esp_lcd_panel_io_handle_t lcd_io;
 esp_lcd_panel_handle_t lcd_panel;
 
 /// @brief Flush callback for LVGL to draw the display.
@@ -194,12 +194,6 @@ esp_lcd_panel_handle_t lcd_panel;
 /// @param px_map Pointer to the pixel data to be drawn.
 void lvgl_port_flush_cb(lv_display_t *display, const lv_area_t *area, uint8_t *px_map) {
     esp_lcd_panel_draw_bitmap(lcd_panel, area->x1, area->y1, area->x2 + 1, area->y2 + 1, px_map);
-    // uint8_t *aligned_px_map = (uint8_t *)((uintptr_t)px_map & ~0x3);
-    // // Use DMA for transferring data to the LCD
-    // esp_err_t ret = esp_lcd_panel_draw_bitmap(lcd_panel, area->x1, area->y1, area->x2 + 1, area->y2 + 1, aligned_px_map);
-    // if (ret != ESP_OK) {
-    //     ESP_LOGE(TAG, "Failed to draw bitmap: %s", esp_err_to_name(ret));
-    // }    
 
 #if CONFIG_EXAMPLE_AVOID_TEAR_EFFECT_WITH_SEM
     xSemaphoreGive(sem_gui_ready);
@@ -208,21 +202,7 @@ void lvgl_port_flush_cb(lv_display_t *display, const lv_area_t *area, uint8_t *p
     lv_display_flush_ready(display);
 }
 
-/// @brief The main GUI task.
-///
-/// This is the main GUI FreeRTOS task and is declared as an extern in main.cpp.
-///
-/// @param pvParameter User data (unused).
-void tuner_gui_task(void *pvParameter) {
-    // esp_lcd_touch_handle_t tp;
-    // lvgl_port_touch_cfg_t touch_cfg;
-
-    // ESP_ERROR_CHECK(lcd_display_brightness_init());
-
-    // ESP_ERROR_CHECK(app_lcd_init(&lcd_io, &lcd_panel));
-    // ESP_ERROR_CHECK(app_lcd_io_init(&lcd_io));
-    ESP_ERROR_CHECK(LCD_Init(&lcd_io, &lcd_panel));
-
+esp_err_t lvgl_init() {
     const lvgl_port_cfg_t lvgl_cfg = {
         .task_priority = 4,
         .task_stack = 4096,
@@ -231,100 +211,19 @@ void tuner_gui_task(void *pvParameter) {
         .timer_period_ms = 5
     };
 
-    esp_err_t e = lvgl_port_init(&lvgl_cfg);
+    esp_err_t e = lvgl_port_init(&lvgl_cfg); // This also calls lv_init()
     ESP_LOGI(TAG, "lvgl_port_init() returned %s", esp_err_to_name(e));
-
-//    lv_init();
-
-    // ESP_LOGI(TAG, "Add LCD screen");
-    // const lvgl_port_display_cfg_t disp_cfg = {
-    //     .io_handle = lcd_io,
-    //     .panel_handle = lcd_panel,
-    //     .buffer_size = DISPLAY_BUFFER_SIZE,
-    //     .double_buffer = LCD_DOUBLE_BUFFER,
-    //     .hres = EXAMPLE_LCD_H_RES,
-    //     .vres = EXAMPLE_LCD_V_RES,
-    //     .monochrome = false,
-    //     .rotation = {
-    //         .swap_xy = false,
-    //         .mirror_x = LCD_MIRROR_X,
-    //         .mirror_y = LCD_MIRROR_Y,
-    //     },
-    //     .flags = {
-    //         .buff_dma = true,
-    //         .buff_spiram = false,
-    //         .swap_bytes = true,
-    //     }
-    // };
-
-    // lvgl_display = lvgl_port_add_disp(&disp_cfg);
-
-    lvgl_display = lv_display_create(EXAMPLE_LCD_H_RES, EXAMPLE_LCD_V_RES);
+    
+    lvgl_display = lv_display_create(LCD_H_RES, LCD_V_RES);
     lv_display_set_flush_cb(lvgl_display, lvgl_port_flush_cb);
 
-    // buf1 = malloc(DISPLAY_BUFFER_SIZE);
-    // assert(buf1);
-    // buf2 = malloc(DISPLAY_BUFFER_SIZE);
-    // assert(buf2);
-
-    // buf1 = heap_caps_malloc(DISPLAY_BUFFER_SIZE, MALLOC_CAP_SPIRAM);
+    // Allocate and set the display buffers
     buf1 = heap_caps_malloc(DISPLAY_BUFFER_SIZE, MALLOC_CAP_INTERNAL | MALLOC_CAP_DMA);
-    // buf1 = heap_caps_malloc(buf_size, MALLOC_CAP_SPIRAM);
-    // buf1 = heap_caps_malloc(buf_size, MALLOC_CAP_DMA);
     assert(buf1);
-    // buf2 = heap_caps_malloc(DISPLAY_BUFFER_SIZE, MALLOC_CAP_SPIRAM);
     buf2 = heap_caps_malloc(DISPLAY_BUFFER_SIZE, MALLOC_CAP_INTERNAL | MALLOC_CAP_DMA);
-    // buf2 = heap_caps_malloc(buf_size, MALLOC_CAP_SPIRAM);
-    // buf2 = heap_caps_malloc(buf_size, MALLOC_CAP_DMA);
     assert(buf2);
 
-    // lv_color_format_t cf = lv_display_get_color_format(lvgl_display);
-    // uint32_t w = lv_display_get_horizontal_resolution(lvgl_display);
-    // uint32_t h = lv_display_get_vertical_resolution(lvgl_display);
-
-    // /* buf1 or buf2 is not aligned according to LV_DRAW_BUF_ALIGN */
-    // uint32_t stride = lv_draw_buf_width_to_stride(w, cf);
-
-    // ESP_LOGI(TAG, "stride: %" PRIu32 ", bufsize: %" PRIu32 "", stride, buf_size);
-
     lv_display_set_buffers(lvgl_display, buf1, buf2, DISPLAY_BUFFER_SIZE, LV_DISPLAY_RENDER_MODE_PARTIAL);
-    // lv_display_set_buffers(lvgl_display, buf1, buf2, buf_size, LV_DISPLAY_RENDER_MODE_PARTIAL);
-    // lv_display_set_buffers(lvgl_display, buf1, NULL, buf_size, LV_DISPLAY_RENDER_MODE_PARTIAL);
-
-    // ESP_LOGI(TAG, "Install LVGL tick timer");
-    // // Tick interface for LVGL (using esp_timer to generate 2ms periodic event)
-    // const esp_timer_create_args_t lvgl_tick_timer_args = {
-    //     .callback = &example_increase_lvgl_tick,
-    //     .name = "lvgl_tick"
-    // };
-    // esp_timer_handle_t lvgl_tick_timer = NULL;
-    // ESP_ERROR_CHECK(esp_timer_create(&lvgl_tick_timer_args, &lvgl_tick_timer));
-    // ESP_ERROR_CHECK(esp_timer_start_periodic(lvgl_tick_timer, 2 * 1000));
-
-    // static lv_color_t buf2[EXAMPLE_LCD_H_RES * EXAMPLE_LCD_V_RES / 10];
-    // ESP_LOGI(TAG, "Allocate separate LVGL draw buffers from PSRAM");
-    // buf1 = heap_caps_malloc((EXAMPLE_LCD_H_RES  * EXAMPLE_LCD_V_RES / 10) * sizeof(lv_color_t), MALLOC_CAP_SPIRAM);
-    // assert(buf1);
-    // buf2 = heap_caps_malloc((EXAMPLE_LCD_H_RES  * EXAMPLE_LCD_V_RES / 10) * sizeof(lv_color_t), MALLOC_CAP_SPIRAM);
-    // assert(buf2);
-    // lv_display_set_buffers(lvgl_display, buf1, buf2, sizeof(buf1), LV_DISPLAY_RENDER_MODE_PARTIAL);
-
-
-    // lv_obj_t *label = lv_label_create(lv_screen_active());
-    // lv_label_set_text(label, "Hello, ST7701!");
-    // lv_obj_align(label, LV_ALIGN_CENTER, 0, 0);
-
-    // lvgl_display = app_lvgl_init(lcd_io, lcd_panel);
-    // if (lvgl_display == NULL)
-    // {
-    //     ESP_LOGI(TAG, "fatal error in app_lvgl_init");
-    //     esp_restart();
-    // }
-
-    // ESP_ERROR_CHECK(touch_init(&tp));
-    // touch_cfg.disp = lvgl_display;
-    // touch_cfg.handle = tp;
-    // lvgl_port_add_touch(&touch_cfg);
 
     if (lvgl_port_lock(0)) {
         ESP_ERROR_CHECK(lcd_display_brightness_set(userSettings->displayBrightness * 10 + 10)); // Adjust for 0 - 10%, 1 - 20%, etc.
@@ -333,15 +232,21 @@ void tuner_gui_task(void *pvParameter) {
         lvgl_port_unlock();
     }
 
+    return ESP_OK;
+}
+
+/// @brief The main GUI task.
+///
+/// This is the main GUI FreeRTOS task and is declared as an extern in main.cpp.
+///
+/// @param pvParameter User data (unused).
+void tuner_gui_task(void *pvParameter) {
+
+    ESP_ERROR_CHECK(LCD_Init(&lcd_panel));
+    ESP_ERROR_CHECK(lvgl_init());
     ESP_ERROR_CHECK(app_lvgl_main());
 
-    is_gui_loaded = true;
-    // while(1) {
-    //     lv_task_handler();
-    //     vTaskDelay(pdMS_TO_TICKS(200));
-    // }
-
-    ESP_LOGI(TAG, "DOUBLE BUFFERED? %d", lv_display_is_double_buffered(lvgl_display));
+    is_gui_loaded = true; // Prevents some other threads that rely on LVGL from running until the UI is loaded
 
     float cents;
 
@@ -354,8 +259,6 @@ void tuner_gui_task(void *pvParameter) {
     tunerController->setState(initial_state);
 
     while(1) {
-        // lv_task_handler(); // esp_lvgl_port is already handling calling this in its own task
-
         TunerState newState = tunerStateBooting;
         portENTER_CRITICAL(&current_ui_tuner_state_mutex);
         newState = current_ui_tuner_state;
@@ -377,15 +280,10 @@ void tuner_gui_task(void *pvParameter) {
             } else {
                 get_active_gui().display_frequency(0, NOTE_NONE, 0, show_mute_indicator);
             }
-            // Release the mutex
+
             lvgl_port_unlock();
-            // vTaskDelay(pdMS_TO_TICKS(125)); // Yields to reset watchdog in milliseconds
-            // vTaskDelay(pdMS_TO_TICKS(33)); // Limits to ~30 FPS (1000ms / 33ms = ~30)
-            // vTaskDelay(pdMS_TO_TICKS(20));
-        } else {
-            // Nothing to do
-            // vTaskDelay(pdMS_TO_TICKS(200));
         }
+        
         lv_timer_handler();
         // vTaskDelay(pdMS_TO_TICKS(33));
         vTaskDelay(pdMS_TO_TICKS(10));
@@ -531,9 +429,7 @@ void create_settings_menu_button(lv_obj_t * parent) {
 }
 
 static esp_err_t app_lvgl_main() {
-    // ESP_LOGI("LOCK", "locking in app_lvgl_main");
     lvgl_port_lock(0);
-    // ESP_LOGI("LOCK", "locked in app_lvgl_main");
 
     ESP_LOGI(TAG, "Starting LVGL Main");
 

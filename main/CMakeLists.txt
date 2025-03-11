@@ -30,32 +30,19 @@ set(SRCS
 
     utils/OneEuroFilter.cpp
 
-    # utils/lcd.c
-    # utils/touch.c
-    utils/I2C_Driver.c
-    utils/ST7701S.c
-    utils/Buzzer.c
-    utils/TCA9554PWR.c
-    utils/multi_button.c
-
-#    utils/ebd4/Buzzer/Buzzer.c
-#    utils/ebd4/EXIO/TCA9554PWR.c
-#    utils/ebd4/I2C_Driver/I2C_Driver.c
-#    utils/ebd4/LCD_Driver/ST7701S.c
-#    utils/ebd4/LVGL_Driver/LVGL_Driver.c
+    hardware/I2C_Driver.c
+    hardware/ST7701S.c
+    hardware/Buzzer.c
+    hardware/TCA9554PWR.c
 )
 
 set(INCLUDE_DIRS
     .
     fonts
+    hardware
     standby-ui
     tuning-ui
     utils
-    # utils/ebd4/Buzzer
-    # utils/ebd4/EXIO
-    # utils/ebd4/I2C_Driver
-    # utils/ebd4/LCD_Driver
-    # utils/ebd4/LVGL_Driver
 )
 
 idf_component_register(
