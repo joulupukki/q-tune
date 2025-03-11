@@ -47,7 +47,8 @@ ST7701S_handle ST7701S_newObject(int SDA, int SCL, int CS, char channel_select, 
         st7701s_handle->spi_io_config_t.quadwp_io_num = -1;
         st7701s_handle->spi_io_config_t.quadhd_io_num = -1;
 
-        st7701s_handle->spi_io_config_t.max_transfer_sz = SOC_SPI_MAXIMUM_BUFFER_SIZE;
+        // st7701s_handle->spi_io_config_t.max_transfer_sz = SOC_SPI_MAXIMUM_BUFFER_SIZE;
+        st7701s_handle->spi_io_config_t.max_transfer_sz = LCD_DRAWBUF_SIZE;
         st7701s_handle->spi_io_config_t.isr_cpu_id = 0;
 
         ESP_ERROR_CHECK(spi_bus_initialize(channel_select, &(st7701s_handle->spi_io_config_t), SPI_DMA_CH_AUTO));

@@ -30,11 +30,6 @@
 #define DOUBLE_PRESS_TIME_MS            250 // milliseconds
 #define DEBOUNCE_TIME_MS                50 // milliseconds
 
-#define DISPLAY_BUFFER_ROWS             32
-// #define DISPLAY_BUFFER_ROWS             24
-#define DISPLAY_BUFFER_SIZE             (480 * DISPLAY_BUFFER_ROWS)
-// #define DISPLAY_BUFFER_SIZE             (480 * 640 * (16 / 8) / 10)
-#define LCD_DOUBLE_BUFFER               1
 #define LCD_MIRROR_X                    (false)
 #define LCD_MIRROR_Y                    (false)
 

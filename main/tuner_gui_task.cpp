@@ -218,12 +218,12 @@ esp_err_t lvgl_init() {
     lv_display_set_flush_cb(lvgl_display, lvgl_port_flush_cb);
 
     // Allocate and set the display buffers
-    buf1 = heap_caps_malloc(DISPLAY_BUFFER_SIZE, MALLOC_CAP_INTERNAL | MALLOC_CAP_DMA);
+    buf1 = heap_caps_malloc(LCD_DRAWBUF_SIZE, MALLOC_CAP_INTERNAL | MALLOC_CAP_DMA);
     assert(buf1);
-    buf2 = heap_caps_malloc(DISPLAY_BUFFER_SIZE, MALLOC_CAP_INTERNAL | MALLOC_CAP_DMA);
+    buf2 = heap_caps_malloc(LCD_DRAWBUF_SIZE, MALLOC_CAP_INTERNAL | MALLOC_CAP_DMA);
     assert(buf2);
 
-    lv_display_set_buffers(lvgl_display, buf1, buf2, DISPLAY_BUFFER_SIZE, LV_DISPLAY_RENDER_MODE_PARTIAL);
+    lv_display_set_buffers(lvgl_display, buf1, buf2, LCD_DRAWBUF_SIZE, LV_DISPLAY_RENDER_MODE_PARTIAL);
 
     if (lvgl_port_lock(0)) {
         ESP_ERROR_CHECK(lcd_display_brightness_set(userSettings->displayBrightness * 10 + 10)); // Adjust for 0 - 10%, 1 - 20%, etc.
