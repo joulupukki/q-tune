@@ -124,6 +124,7 @@ const char * quiz_gui_get_name() {
 }
 
 void quiz_gui_init(lv_obj_t *screen) {
+    ESP_LOGI(TAG, "Initializing the note quiz tuner UI");
     quiz_parent_screen = screen;
     quiz_create_labels(screen);
 
@@ -139,6 +140,9 @@ void quiz_gui_init(lv_obj_t *screen) {
         quiz_user_note_color = lv_palette_main(quiz_user_note_palette);
     }
     quiz_slider_out_color = lv_palette_main(LV_PALETTE_GREY);
+
+    lv_obj_set_style_img_recolor(quiz_note_img, quiz_user_note_color, 0);
+    lv_obj_set_style_img_recolor(quiz_sharp_img, quiz_user_note_color, 0);
 }
 
 void quiz_gui_display_frequency(float frequency, TunerNoteName note_name, float cents, bool show_mute_indicator) {
@@ -205,9 +209,6 @@ void quiz_gui_display_frequency(float frequency, TunerNoteName note_name, float 
     } else {
         lv_obj_add_flag(quiz_mute_label, LV_OBJ_FLAG_HIDDEN);
     }
-
-    lv_obj_set_style_img_recolor(quiz_note_img, quiz_user_note_color, 0);
-    lv_obj_set_style_img_recolor(quiz_sharp_img, quiz_user_note_color, 0);
 }
 
 void quiz_gui_cleanup() {
