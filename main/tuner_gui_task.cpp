@@ -276,7 +276,8 @@ void tuner_gui_task(void *pvParameter) {
         bool monitoring_mode = userSettings->monitoringMode && current_ui_tuner_state == tunerStateStandby;
         if ((monitoring_mode || current_ui_tuner_state == tunerStateTuning) && lvgl_port_lock(0)) {
             bool show_mute_indicator = current_ui_tuner_state == tunerStateTuning && userSettings->monitoringMode;
-            if (!xQueueReceive(frequencyQueue, &current_frequency, pdMS_TO_TICKS(10))) {
+            
+            if (!xQueuePeek(frequencyQueue, &current_frequency, 0)) {
                 current_frequency = -1;
             }
             if (current_frequency > 0) {

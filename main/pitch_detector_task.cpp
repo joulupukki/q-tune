@@ -200,8 +200,8 @@ void pitch_detector_task(void *pvParameter) {
         ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
 
         while (1) {
-            if (userSettings == NULL || userSettings->isShowingSettings()) {
-                // Don't read the signal when the settings menu is showing.
+            if (userSettings == NULL) {
+                // Things aren't yet initialized. Do nothing.
                 vTaskDelay(pdMS_TO_TICKS(500));
                 continue;
             }
@@ -239,7 +239,7 @@ void pitch_detector_task(void *pvParameter) {
                 float range = maxVal - minVal;
                 if (range < TUNER_READING_DIFF_MINIMUM) {
                     float no_freq = -1;
-                    xQueueSend(frequencyQueue, &no_freq, pdMS_TO_TICKS(10));
+                    xQueueOverwrite(frequencyQueue, &no_freq);
                     // set_current_frequency(-1); // Indicate to the UI that there's no frequency available
                     oneEUFilter.reset(); // Reset the 1EU filter so the next frequency it detects will be as fast as possible
                     smoother.reset();
@@ -247,7 +247,7 @@ void pitch_detector_task(void *pvParameter) {
                     // medianMovingFilter.reset();
                     medianFilter.reset();
                     pd.reset();
-                    vTaskDelay(pdMS_TO_TICKS(15));
+                    vTaskDelay(pdMS_TO_TICKS(10));
                     // vTaskDelay(10 / portTICK_PERIOD_MS); // Should be 10ms?
                     continue;
                 }
@@ -328,7 +328,7 @@ void pitch_detector_task(void *pvParameter) {
                         // Median Filter
                         f = medianFilter.addValue(f);
                         if (f != -1.0f) {
-                            xQueueSend(frequencyQueue, &f, pdMS_TO_TICKS(10));
+                            xQueueOverwrite(frequencyQueue, &f);
 
                             // int8_t current_seconds = (int8_t)time_seconds;
                             // if (current_seconds % 2 == 0) {
@@ -345,7 +345,7 @@ void pitch_detector_task(void *pvParameter) {
                  */
                 // vTaskDelay(1); // potentially no longer needed
                 // vTaskDelay(10 / portTICK_PERIOD_MS); // Should be 10ms?
-                vTaskDelay(pdMS_TO_TICKS(15));
+                vTaskDelay(pdMS_TO_TICKS(10));
             } else if (ret == ESP_ERR_TIMEOUT) {
                 //We try to read `EXAMPLE_READ_LEN` until API returns timeout, which means there's no available data
                 break;

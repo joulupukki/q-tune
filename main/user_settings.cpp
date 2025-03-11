@@ -249,12 +249,6 @@ void UserSettings::loadSettings() {
     ESP_LOGI(TAG, "Display Brightness: %d", displayBrightness);
 }
 
-void UserSettings::setIsShowingSettings(bool isShowing) {
-    portENTER_CRITICAL(&isShowingMenu_mutex);
-    isShowingMenu = isShowing;
-    portEXIT_CRITICAL(&isShowingMenu_mutex);
-}
-
 void UserSettings::advanceToNextButton() {
     lv_group_t *group = lv_group_get_default();
     if (group == NULL) {
@@ -293,14 +287,6 @@ UserSettings::UserSettings(settings_will_show_cb_t showCallback, settings_change
     settingsWillExitCallback = exitCallback;
     currentSettingIndex = 0;
     loadSettings();
-}
-
-bool UserSettings::isShowingSettings() {
-    bool isShowing = false;
-    portENTER_CRITICAL(&isShowingMenu_mutex);
-    isShowing = isShowingMenu;
-    portEXIT_CRITICAL(&isShowingMenu_mutex);
-    return isShowing;
 }
 
 void UserSettings::saveSettings() {
@@ -401,7 +387,6 @@ void UserSettings::setDisplayAndScreen(lv_display_t *display, lv_obj_t *screen) 
 
 void UserSettings::showSettings() {
     settingsWillShowCallback();
-    setIsShowingSettings(true);
     const char *symbolNames[] = {
         LV_SYMBOL_HOME,
         LV_SYMBOL_IMAGE,
@@ -834,7 +819,6 @@ void UserSettings::exitSettings() {
         screenStack.pop_back();
     }
 
-    setIsShowingSettings(false);
     lv_obj_t *main_screen = screenStack.back();
     lv_screen_load(main_screen);
 }

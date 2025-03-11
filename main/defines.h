@@ -22,7 +22,11 @@
 //
 // RTOS Queues
 //
-#define FREQUENCY_QUEUE_LENGTH 2
+
+// The pitch detector task will always write the latest value of detection on
+// the queue. Use a length of 1 so we can use xQueueOverwrite and xQueuePeek so
+// the very latest frequency info is always available to anywhere.
+#define FREQUENCY_QUEUE_LENGTH 1
 #define FREQUENCY_QUEUE_ITEM_SIZE sizeof(float)
 
 //
