@@ -43,14 +43,6 @@ typedef enum {
     NOTE_NONE
 } TunerNoteName;
 
-/// @brief Gets the currently-detected frequency (thread safe).
-/// @return The currently-detected frequency or -1 if no frequency is detected.
-float get_current_frequency();
-
-/// @brief Sets a newly-detected frequency (thread safe).
-/// @param new_frequency The newly-detected frequency or -1 if no frequency is detected.
-void set_current_frequency(float new_frequency);
-
 inline const char *name_for_note(TunerNoteName note) { 
     switch (note) {
         case NOTE_C:

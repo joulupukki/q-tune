@@ -18,6 +18,7 @@
  */
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
+#include "freertos/queue.h"
 #include "esp_adc/adc_continuous.h"
 #include "esp_timer.h"
 
@@ -41,6 +42,8 @@ UserSettings *userSettings;
 
 TaskHandle_t gpioTaskHandle;
 TaskHandle_t detectorTaskHandle;
+
+QueueHandle_t frequencyQueue;
 
 /* GPIO PINS
 
@@ -125,6 +128,14 @@ extern "C" void app_main() {
     EXIO_Init();
 
     tunerController = new TunerController(tuner_state_will_change_cb, tuner_state_did_change_cb, footswitch_pressed_cb);
+
+    frequencyQueue = xQueueCreate(FREQUENCY_QUEUE_LENGTH, FREQUENCY_QUEUE_ITEM_SIZE);
+
+    if (frequencyQueue == NULL) {
+        ESP_LOGE(TAG, "Frequency Queue creation failed!");
+    } else {
+        ESP_LOGI(TAG, "Frequency Queue created successfully!");
+    }
 
     // // Start the GPIO Task
     xTaskCreatePinnedToCore(

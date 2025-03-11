@@ -1,7 +1,6 @@
 # ESP32-CYD
 set(SRCS
     main.cpp
-    globals.cpp
     gpio_task.cpp
     pitch_detector_task.cpp
     tuner_gui_task.cpp

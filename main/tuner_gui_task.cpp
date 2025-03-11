@@ -27,6 +27,7 @@
 
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
+#include "freertos/queue.h"
 #include "esp_adc/adc_continuous.h"
 #include "esp_timer.h"
 
@@ -57,6 +58,7 @@ static const char *TAG = "GUI";
 extern TunerController *tunerController;
 extern UserSettings *userSettings;
 extern "C" const lv_font_t fontawesome_48;
+extern QueueHandle_t frequencyQueue;
 
 // Local Function Declarations
 void update_ui(TunerState old_state, TunerState new_state);
@@ -81,6 +83,8 @@ lv_display_t *lvgl_display = NULL;
 lv_obj_t *main_screen = NULL;
 
 bool is_gui_loaded = false;
+
+float current_frequency = -1.0f;
 
 /// This variable is used to keep track of what state the UI is in. Initially
 /// the code would try to rebuild the UI inside of the button press handling of
@@ -272,11 +276,13 @@ void tuner_gui_task(void *pvParameter) {
         bool monitoring_mode = userSettings->monitoringMode && current_ui_tuner_state == tunerStateStandby;
         if ((monitoring_mode || current_ui_tuner_state == tunerStateTuning) && lvgl_port_lock(0)) {
             bool show_mute_indicator = current_ui_tuner_state == tunerStateTuning && userSettings->monitoringMode;
-            float frequency = get_current_frequency();
-            if (frequency > 0) {
-                TunerNoteName note_name = get_pitch_name_and_cents_from_frequency(frequency, &cents);
+            if (!xQueueReceive(frequencyQueue, &current_frequency, pdMS_TO_TICKS(10))) {
+                current_frequency = -1;
+            }
+            if (current_frequency > 0) {
+                TunerNoteName note_name = get_pitch_name_and_cents_from_frequency(current_frequency, &cents);
                 // ESP_LOGI(TAG, "%s - %d", noteName, cents);
-                get_active_gui().display_frequency(frequency, note_name, cents, show_mute_indicator);
+                get_active_gui().display_frequency(current_frequency, note_name, cents, show_mute_indicator);
             } else {
                 get_active_gui().display_frequency(0, NOTE_NONE, 0, show_mute_indicator);
             }

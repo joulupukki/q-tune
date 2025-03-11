@@ -20,6 +20,12 @@
 #define TUNER_GLOBAL_DEFINES
 
 //
+// RTOS Queues
+//
+#define FREQUENCY_QUEUE_LENGTH 2
+#define FREQUENCY_QUEUE_ITEM_SIZE sizeof(float)
+
+//
 // Foot Switch and Relay (GPIO)
 //
 #define FOOT_SWITCH_GPIO                GPIO_NUM_0 // BOOT button
