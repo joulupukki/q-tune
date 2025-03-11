@@ -76,7 +76,7 @@ lv_style_t strobe_cents_label_style;
 lv_obj_t *strobe_arc_container;
 lv_obj_t *strobe_arc1;
 lv_obj_t *strobe_arc2;
-// lv_obj_t *strobe_arc3;
+lv_obj_t *strobe_arc3;
 lv_timer_t *strobe_fade_timer = NULL;
 
 float strobe_rotation_current_pos = 0;
@@ -152,9 +152,9 @@ void strobe_gui_display_frequency(float frequency, TunerNoteName note_name, floa
         strobe_rotation_current_pos += strobe_amount_to_rotate; // This will make the strobe rotate left or right depending on how off the tuning is
 
         lv_arc_set_rotation(strobe_arc1, strobe_rotation_current_pos);
-        lv_arc_set_rotation(strobe_arc2, strobe_rotation_current_pos);
-        // lv_arc_set_rotation(strobe_arc2, strobe_rotation_current_pos + 120); // 1/3 of a circle ahead
-        // lv_arc_set_rotation(strobe_arc3, strobe_rotation_current_pos + 240); // 2/3 of a circle ahead
+        // lv_arc_set_rotation(strobe_arc2, strobe_rotation_current_pos);
+        lv_arc_set_rotation(strobe_arc2, strobe_rotation_current_pos + 120); // 1/3 of a circle ahead
+        lv_arc_set_rotation(strobe_arc3, strobe_rotation_current_pos + 240); // 2/3 of a circle ahead
 
         // // With the UI updating as much as possible, this keeps the tuning
         // // stable by yielding for just a teeny amount.
@@ -251,42 +251,43 @@ void strobe_create_arcs(lv_obj_t * parent) {
 
     strobe_arc1 = lv_arc_create(strobe_arc_container);
     strobe_arc2 = lv_arc_create(strobe_arc_container);
-    // strobe_arc3 = lv_arc_create(strobe_arc_container);
+    strobe_arc3 = lv_arc_create(strobe_arc_container);
 
     lv_obj_remove_style(strobe_arc1, NULL, LV_PART_KNOB); // Don't show a knob
     lv_obj_remove_style(strobe_arc2, NULL, LV_PART_KNOB); // Don't show a knob
-    // lv_obj_remove_style(strobe_arc3, NULL, LV_PART_KNOB); // Don't show a knob
+    lv_obj_remove_style(strobe_arc3, NULL, LV_PART_KNOB); // Don't show a knob
 
     lv_obj_remove_flag(strobe_arc1, LV_OBJ_FLAG_CLICKABLE);
     lv_obj_remove_flag(strobe_arc2, LV_OBJ_FLAG_CLICKABLE);
-    // lv_obj_remove_flag(strobe_arc3, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_remove_flag(strobe_arc3, LV_OBJ_FLAG_CLICKABLE);
 
     lv_obj_set_size(strobe_arc1, 400, 400);
     lv_obj_set_size(strobe_arc2, 400, 400);
-    // lv_obj_set_size(strobe_arc3, 400, 400);
+    lv_obj_set_size(strobe_arc3, 400, 400);
 
     lv_obj_set_style_arc_width(strobe_arc1, 24, LV_PART_INDICATOR);
     lv_obj_set_style_arc_width(strobe_arc2, 24, LV_PART_INDICATOR);
-    // lv_obj_set_style_arc_width(strobe_arc3, 24, LV_PART_INDICATOR);
+    lv_obj_set_style_arc_width(strobe_arc3, 24, LV_PART_INDICATOR);
 
     lv_obj_set_style_arc_color(strobe_arc1, lv_color_white(), LV_PART_INDICATOR);
     lv_obj_set_style_arc_color(strobe_arc2, lv_color_white(), LV_PART_INDICATOR);
-    // lv_obj_set_style_arc_color(strobe_arc3, lv_color_white(), LV_PART_INDICATOR);
+    lv_obj_set_style_arc_color(strobe_arc3, lv_color_white(), LV_PART_INDICATOR);
 
     lv_obj_center(strobe_arc1);
     lv_obj_center(strobe_arc2);
-    // lv_obj_center(strobe_arc3);
+    lv_obj_center(strobe_arc3);
 
-    // lv_arc_set_angles(strobe_arc1, 0, 90);
-    lv_arc_set_angles(strobe_arc1, 0, 120);
-    lv_arc_set_angles(strobe_arc2, 180, 300);
-    // lv_arc_set_angles(strobe_arc2, 120, 210); // length of 90 and offset by 1/3 of a circle
-    // lv_arc_set_angles(strobe_arc3, 240, 330); // length of 90 and offset by 2/3 of a circle
+    // lv_arc_set_angles(strobe_arc1, 0, 120);
+    // lv_arc_set_angles(strobe_arc2, 180, 300);
+
+    lv_arc_set_angles(strobe_arc1, 0, 90);
+    lv_arc_set_angles(strobe_arc2, 120, 210); // length of 90 and offset by 1/3 of a circle
+    lv_arc_set_angles(strobe_arc3, 240, 330); // length of 90 and offset by 2/3 of a circle
 
     // Hide the background tracks
     lv_obj_set_style_arc_opa(strobe_arc1, LV_OPA_0, 0);
     lv_obj_set_style_arc_opa(strobe_arc2, LV_OPA_0, 0);
-    // lv_obj_set_style_arc_opa(strobe_arc3, LV_OPA_0, 0);
+    lv_obj_set_style_arc_opa(strobe_arc3, LV_OPA_0, 0);
 
     // Hide the strobe arcs
     // lv_obj_add_flag(strobe_arc_container, LV_OBJ_FLAG_HIDDEN);
