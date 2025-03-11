@@ -31,6 +31,15 @@
 #include "esp_adc/adc_continuous.h"
 #include "esp_timer.h"
 
+#include <esp_lcd_panel_io.h>
+// #include <esp_lcd_panel_vendor.h>
+// #include <esp_lcd_panel_ops.h>
+// #include <driver/ledc.h>
+// #include <driver/spi_master.h>
+// #include <lvgl.h>
+// #include "esp_lcd_panel_rgb.h"
+
+
 #include <cmath> // for log2()
 
 //
@@ -73,6 +82,9 @@ void settings_button_cb(lv_event_t *e);
 void create_settings_menu_button(lv_obj_t * parent);
 static esp_err_t app_lvgl_main();
 
+static esp_lcd_panel_io_handle_t lcd_io;
+static esp_lcd_panel_handle_t lcd_panel;
+
 static void *buf1 = NULL;
 static void *buf2 = NULL;
 
@@ -85,14 +97,6 @@ lv_obj_t *main_screen = NULL;
 bool is_gui_loaded = false;
 
 float current_frequency = -1.0f;
-
-/// This variable is used to keep track of what state the UI is in. Initially
-/// the code would try to rebuild the UI inside of the button press handling of
-/// gpio_task but that was causing problems probably because not much memory is
-/// allocated to that task. This now allows the UI task to change after-the-fact
-/// and do the GUI changes inside tuner_gui_task.
-TunerState current_ui_tuner_state = tunerStateBooting;
-portMUX_TYPE current_ui_tuner_state_mutex = portMUX_INITIALIZER_UNLOCKED;
 
 //
 // GPIO Footswitch and Relay Pin Variables
@@ -186,9 +190,6 @@ TunerGUIInterface get_active_gui() {
     return active_gui;
 }
 
-// esp_lcd_panel_io_handle_t lcd_io;
-esp_lcd_panel_handle_t lcd_panel;
-
 /// @brief Flush callback for LVGL to draw the display.
 /// 
 /// This function is called by LVGL to flush a specific area of the display with pixel data.
@@ -198,12 +199,15 @@ esp_lcd_panel_handle_t lcd_panel;
 /// @param px_map Pointer to the pixel data to be drawn.
 void lvgl_port_flush_cb(lv_display_t *display, const lv_area_t *area, uint8_t *px_map) {
     esp_lcd_panel_draw_bitmap(lcd_panel, area->x1, area->y1, area->x2 + 1, area->y2 + 1, px_map);
-
-#if CONFIG_EXAMPLE_AVOID_TEAR_EFFECT_WITH_SEM
-    xSemaphoreGive(sem_gui_ready);
-    xSemaphoreTake(sem_vsync_end, portMAX_DELAY);
-#endif
     lv_display_flush_ready(display);
+}
+
+bool spi_trans_done_cb(esp_lcd_panel_io_handle_t panel_io, esp_lcd_panel_io_event_data_t *edata, void *user_ctx) {
+    if (!user_ctx) {
+        return false;
+    }
+    lv_display_flush_ready((lv_display_t *)user_ctx);
+    return false; // return true if a higher priority task needs a reschedule
 }
 
 static void tick_timer_cb(void *arg)
@@ -238,11 +242,29 @@ esp_err_t lvgl_init() {
     lvgl_display = lv_display_create(LCD_H_RES, LCD_V_RES);
     lv_display_set_flush_cb(lvgl_display, lvgl_port_flush_cb);
 
+    // esp_lcd_panel_io_spi_config_t panel_io_config = {
+    //     .cs_gpio_num = LCD_CS,
+    //     .dc_gpio_num = -1,
+    //     .spi_mode = 0,
+    //     .pclk_hz = LCD_PIXEL_CLOCK_HZ,
+    //     .trans_queue_depth = 10,
+    //     .on_color_trans_done = spi_trans_done_cb,
+    //     .user_ctx = lvgl_display,
+    //     .lcd_cmd_bits = 1,
+    //     .lcd_param_bits = 8,
+    // };
+
+    // esp_lcd_new_panel_io_spi(SPI2_HOST, &panel_io_config, &lcd_io);
+
     // Allocate and set the display buffers
     buf1 = heap_caps_malloc(LCD_DRAWBUF_SIZE, MALLOC_CAP_INTERNAL | MALLOC_CAP_DMA);
     assert(buf1);
     buf2 = heap_caps_malloc(LCD_DRAWBUF_SIZE, MALLOC_CAP_INTERNAL | MALLOC_CAP_DMA);
     assert(buf2);
+    // buf1 = heap_caps_malloc(LCD_DRAWBUF_SIZE, MALLOC_CAP_SPIRAM);
+    // assert(buf1);
+    // buf2 = heap_caps_malloc(LCD_DRAWBUF_SIZE, MALLOC_CAP_SPIRAM);
+    // assert(buf2);
 
     lv_display_set_buffers(lvgl_display, buf1, buf2, LCD_DRAWBUF_SIZE, LV_DISPLAY_RENDER_MODE_PARTIAL);
 
@@ -272,27 +294,22 @@ void tuner_gui_task(void *pvParameter) {
     float cents;
 
     // Use old_tuner_ui_state to keep track of the old state locally (in this
-    // function). When gpio_task signals that the state should change, the
-    // callback quickly writes to the current_ui_tuner_state (using a mutex) and
-    // then tuner_gui_task does the actual update inside the while loop.
+    // function).
     TunerState old_tuner_ui_state = tunerController->getState();
     TunerState initial_state = userSettings->initialState;
     tunerController->setState(initial_state);
 
     while(1) {
-        TunerState newState = tunerStateBooting;
-        portENTER_CRITICAL(&current_ui_tuner_state_mutex);
-        newState = current_ui_tuner_state;
-        portEXIT_CRITICAL(&current_ui_tuner_state_mutex);
+        TunerState newState = tunerController->getState();
 
-        if (old_tuner_ui_state != current_ui_tuner_state) {
-            update_ui(old_tuner_ui_state, current_ui_tuner_state);
-            old_tuner_ui_state = current_ui_tuner_state;
+        if (old_tuner_ui_state != newState) {
+            update_ui(old_tuner_ui_state, newState);
+            old_tuner_ui_state = newState;
         }
 
-        bool monitoring_mode = userSettings->monitoringMode && current_ui_tuner_state == tunerStateStandby;
-        if ((monitoring_mode || current_ui_tuner_state == tunerStateTuning) && lvgl_port_lock(0)) {
-            bool show_mute_indicator = current_ui_tuner_state == tunerStateTuning && userSettings->monitoringMode;
+        bool monitoring_mode = userSettings->monitoringMode && newState == tunerStateStandby;
+        if ((monitoring_mode || newState == tunerStateTuning) && lvgl_port_lock(0)) {
+            bool show_mute_indicator = newState == tunerStateTuning && userSettings->monitoringMode;
             
             if (!xQueuePeek(frequencyQueue, &current_frequency, 0)) {
                 current_frequency = -1;
@@ -309,8 +326,8 @@ void tuner_gui_task(void *pvParameter) {
         }
         
         lv_timer_handler();
-        // vTaskDelay(pdMS_TO_TICKS(33));
-        vTaskDelay(pdMS_TO_TICKS(10));
+        vTaskDelay(pdMS_TO_TICKS(33));
+        // vTaskDelay(pdMS_TO_TICKS(10));
     }
     vTaskDelay(portMAX_DELAY);
 }
@@ -372,14 +389,6 @@ void update_ui(TunerState old_state, TunerState new_state) {
     }
 
     lvgl_port_unlock();
-}
-
-void tuner_gui_task_tuner_state_changed(TunerState old_state, TunerState new_state) {
-    // Change the value of current_ui_tuner_state so the main UI thread will be
-    // able to change after the tuner state changes.
-    portENTER_CRITICAL(&current_ui_tuner_state_mutex);
-    current_ui_tuner_state = new_state;
-    portEXIT_CRITICAL(&current_ui_tuner_state_mutex);
 }
 
 void user_settings_updated() {

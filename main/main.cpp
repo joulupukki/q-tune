@@ -84,9 +84,6 @@ void tuner_state_did_change_cb(TunerState old_state, TunerState new_state) {
     case tunerStateBooting:
         break;
     }
-
-    // Tell the UI about the update so it can update.
-    tuner_gui_task_tuner_state_changed(old_state, new_state);
 }
 
 void footswitch_pressed_cb(FootswitchPress press) {

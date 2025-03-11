@@ -23,14 +23,16 @@
 #define LCD_SCLK 2
 #define LCD_CS  -1      // Using EXIO
 // The pixel number in horizontal and vertical
-#define LCD_V_RES              640
-#define LCD_H_RES              480
+#define LCD_V_RES               640
+#define LCD_H_RES               480
+#define LCD_BIT_WIDTH          16
 
-#define LCD_BUF_LINES      32
-#define LCD_DRAWBUF_SIZE   (LCD_H_RES * LCD_BUF_LINES)
+// #define LCD_BUF_LINES      32
+// #define LCD_DRAWBUF_SIZE   (LCD_H_RES * LCD_BUF_LINES) // works with both DMA and SPIRAM but slower in SPIRAM
+// #define LCD_DRAWBUF_SIZE   (LCD_H_RES * LCD_V_RES * LCD_BIT_WIDTH / 10) // crashes when using
+#define LCD_DRAWBUF_SIZE   (LCD_H_RES * LCD_V_RES / 10) // works in DMA and SPIRAM but slower in SPIRAM by 1-2 fps
 
-// #define LCD_PIXEL_CLOCK_HZ     (30 * 1000 * 1000) // original as defined by Waveshare
-#define LCD_PIXEL_CLOCK_HZ     (28 * 1000 * 1000) // makes things work without glitches
+#define LCD_PIXEL_CLOCK_HZ     (30 * 1000 * 1000) // original as defined by Waveshare
 #define LCD_BK_LIGHT_ON_LEVEL  1
 #define LCD_BK_LIGHT_OFF_LEVEL !LCD_BK_LIGHT_ON_LEVEL
 #define PIN_NUM_BK_LIGHT       6
