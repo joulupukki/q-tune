@@ -23,7 +23,7 @@
 #include "globals.h"
 #include "user_settings.h"
 
-#include "esp_lvgl_port.h"
+// #include "esp_lvgl_port.h"
 
 #define PITCH_INDICATOR_BAR_WIDTH       16
 

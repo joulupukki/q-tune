@@ -24,7 +24,7 @@
 #include "user_settings.h"
 
 #include "lvgl.h"
-#include "esp_lvgl_port.h"
+// #include "esp_lvgl_port.h"
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
 #include "esp_timer.h"

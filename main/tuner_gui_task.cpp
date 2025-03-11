@@ -45,7 +45,7 @@
 // LVGL Support
 //
 #include "lvgl.h"
-#include "esp_lvgl_port.h"
+// #include "esp_lvgl_port.h"
 
 extern "C" { // because these files are C and not C++
     // #include "lcd.h"
@@ -206,17 +206,34 @@ void lvgl_port_flush_cb(lv_display_t *display, const lv_area_t *area, uint8_t *p
     lv_display_flush_ready(display);
 }
 
-esp_err_t lvgl_init() {
-    const lvgl_port_cfg_t lvgl_cfg = {
-        .task_priority = 4,
-        .task_stack = 4096,
-        .task_affinity = -1,
-        .task_max_sleep_ms = 500,
-        .timer_period_ms = 5
-    };
+static void tick_timer_cb(void *arg)
+{
+    /* Tell LVGL how many milliseconds has elapsed */
+    lv_tick_inc(5);
+}
 
-    esp_err_t e = lvgl_port_init(&lvgl_cfg); // This also calls lv_init()
-    ESP_LOGI(TAG, "lvgl_port_init() returned %s", esp_err_to_name(e));
+esp_err_t lvgl_init() {
+    
+    lv_init();
+    const esp_timer_create_args_t tick_timer_args = {
+        .callback = &tick_timer_cb,
+        .name = "tick_timer"
+    };
+    esp_timer_handle_t tick_timer = NULL;
+    ESP_ERROR_CHECK(esp_timer_create(&tick_timer_args, &tick_timer));
+    // ESP_ERROR_CHECK(esp_timer_start_periodic(tick_timer, 1 + 1000));  // every 1 milliseconds
+    ESP_ERROR_CHECK(esp_timer_start_periodic(tick_timer, 5 * 1000));  // every 5 milliseconds
+
+    // const lvgl_port_cfg_t lvgl_cfg = {
+    //     .task_priority = 4,
+    //     .task_stack = 4096,
+    //     .task_affinity = -1,
+    //     .task_max_sleep_ms = 500,
+    //     .timer_period_ms = 5
+    // };
+
+    // esp_err_t e = lvgl_port_init(&lvgl_cfg); // This also calls lv_init()
+    // ESP_LOGI(TAG, "lvgl_port_init() returned %s", esp_err_to_name(e));
     
     lvgl_display = lv_display_create(LCD_H_RES, LCD_V_RES);
     lv_display_set_flush_cb(lvgl_display, lvgl_port_flush_cb);

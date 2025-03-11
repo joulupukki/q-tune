@@ -26,7 +26,7 @@
 #include "tuner_controller.h"
 
 #include "lvgl.h"
-#include "esp_lvgl_port.h"
+// #include "esp_lvgl_port.h"
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
 
