@@ -29,6 +29,9 @@
 #define FREQUENCY_QUEUE_LENGTH 1
 #define FREQUENCY_QUEUE_ITEM_SIZE sizeof(float)
 
+#define TUNER_STATE_QUEUE_LENGTH 1
+#define TUNER_STATE_QUEUE_ITEM_SIZE sizeof(uint8_t)
+
 //
 // Foot Switch and Relay (GPIO)
 //
