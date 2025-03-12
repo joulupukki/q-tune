@@ -19,6 +19,8 @@
 #if !defined(TUNER_GLOBAL_DEFINES)
 #define TUNER_GLOBAL_DEFINES
 
+#include "driver/gpio.h"
+
 //
 // RTOS Queues
 //
@@ -42,9 +44,8 @@ inline void lvgl_port_unlock() {
 //
 // Foot Switch and Relay (GPIO)
 //
-#define FOOT_SWITCH_GPIO                GPIO_NUM_0 // BOOT button
-// #define FOOT_SWITCH_GPIO                GPIO_NUM_44 // TXD on EBD4
-#define RELAY_GPIO                      GPIO_NUM_43 // RXD on EBD4
+#define FOOT_SWITCH_GPIO                GPIO_NUM_44 // RXD on EBD2
+#define RELAY_GPIO                      GPIO_NUM_43 // TXD on EBD2
 
 #define LONG_PRESS_TIME_MS              1000 // milliseconds
 #define DOUBLE_PRESS_TIME_MS            250 // milliseconds

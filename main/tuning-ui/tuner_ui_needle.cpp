@@ -25,21 +25,26 @@
 
 // #include "esp_lvgl_port.h"
 
-#define PITCH_INDICATOR_BAR_WIDTH       16
+#define NEEDLE_PITCH_INDICATOR_BAR_WIDTH        8
+#define NEEDLE_RULER_HEIGHT                     50
+#define NEEDLE_RULER_CENTER_HEIGHT              40
+#define NEEDLE_RULER_TALL_HEIGHT                30
+#define NEEDLE_RULER_SHORT_HEIGH                20
+#define NEEDLE_NUM_LINES_PER_SIDE               14
 
 extern UserSettings *userSettings;
 extern lv_coord_t screen_width;
 extern lv_coord_t screen_height;
 
-LV_IMG_DECLARE(tuner_font_image_a2x)
-LV_IMG_DECLARE(tuner_font_image_b2x)
-LV_IMG_DECLARE(tuner_font_image_c2x)
-LV_IMG_DECLARE(tuner_font_image_d2x)
-LV_IMG_DECLARE(tuner_font_image_e2x)
-LV_IMG_DECLARE(tuner_font_image_f2x)
-LV_IMG_DECLARE(tuner_font_image_g2x)
-LV_IMG_DECLARE(tuner_font_image_none2x)
-LV_IMG_DECLARE(tuner_font_image_sharp2x)
+LV_IMG_DECLARE(tuner_font_image_a)
+LV_IMG_DECLARE(tuner_font_image_b)
+LV_IMG_DECLARE(tuner_font_image_c)
+LV_IMG_DECLARE(tuner_font_image_d)
+LV_IMG_DECLARE(tuner_font_image_e)
+LV_IMG_DECLARE(tuner_font_image_f)
+LV_IMG_DECLARE(tuner_font_image_g)
+LV_IMG_DECLARE(tuner_font_image_none)
+LV_IMG_DECLARE(tuner_font_image_sharp)
 
 //
 // Function Definitions
@@ -154,13 +159,13 @@ void needle_gui_cleanup() {
 }
 
 void needle_create_ruler(lv_obj_t * parent) {
-    const int ruler_height = 100;     // Total height of the ruler
+    const int ruler_height = NEEDLE_RULER_HEIGHT;     // Total height of the ruler
     const int ruler_line_width = 4;  // Width of each ruler line
     const int spacer_width = (screen_width - (29 * ruler_line_width)) / 30;      // Width between items
-    const int center_height = 80;    // Height of the center line
-    const int tall_height = 60;      // Height of taller side lines
-    const int short_height = 40;     // Height of shorter side lines
-    const int num_lines_side = 14;   // Number of lines on each side of the center
+    const int center_height = NEEDLE_RULER_CENTER_HEIGHT;    // Height of the center line
+    const int tall_height = NEEDLE_RULER_TALL_HEIGHT;      // Height of taller side lines
+    const int short_height = NEEDLE_RULER_SHORT_HEIGH;     // Height of shorter side lines
+    const int num_lines_side = NEEDLE_NUM_LINES_PER_SIDE;   // Number of lines on each side of the center
 
     const int cents_container_height = ruler_height;
 
@@ -176,7 +181,7 @@ void needle_create_ruler(lv_obj_t * parent) {
     needle_cents_label = lv_label_create(cents_container);
     
     lv_style_init(&needle_cents_label_style);
-    lv_style_set_text_font(&needle_cents_label_style, &lv_font_montserrat_36);
+    lv_style_set_text_font(&needle_cents_label_style, &lv_font_montserrat_18);
     lv_obj_add_style(needle_cents_label, &needle_cents_label_style, 0);
 
     lv_obj_set_width(needle_cents_label, screen_width / 2);
@@ -237,7 +242,7 @@ void needle_create_ruler(lv_obj_t * parent) {
     lv_obj_t * rect = lv_obj_create(ruler_container);
 
     // Set the rectangle's size and position
-    lv_obj_set_size(rect, PITCH_INDICATOR_BAR_WIDTH, center_height);
+    lv_obj_set_size(rect, NEEDLE_PITCH_INDICATOR_BAR_WIDTH, center_height);
     lv_obj_set_style_border_width(rect, 0, LV_PART_MAIN);
     lv_obj_align(rect, LV_ALIGN_CENTER, 0, 0);
 
@@ -270,11 +275,11 @@ void needle_create_labels(lv_obj_t * parent) {
     lv_obj_center(needle_note_img_container);
 
     needle_note_img = lv_image_create(needle_note_img_container);
-    lv_image_set_src(needle_note_img, &tuner_font_image_none2x);
+    lv_image_set_src(needle_note_img, &tuner_font_image_none);
     lv_obj_align(needle_note_img, LV_ALIGN_CENTER, 0, 40); // Offset down by 40 pixels
 
     needle_sharp_img = lv_image_create(needle_note_img_container);
-    lv_image_set_src(needle_sharp_img, &tuner_font_image_sharp2x);
+    lv_image_set_src(needle_sharp_img, &tuner_font_image_sharp);
     lv_obj_align_to(needle_sharp_img, needle_note_img, LV_ALIGN_TOP_RIGHT, 40, -30);
     lv_obj_add_flag(needle_sharp_img, LV_OBJ_FLAG_HIDDEN);
     
@@ -293,7 +298,7 @@ void needle_create_labels(lv_obj_t * parent) {
     // MUTE label (for monitoring mode)
     needle_mute_label = lv_label_create(parent);
     lv_label_set_text_static(needle_mute_label, "MUTE");
-    lv_obj_set_style_text_font(needle_mute_label, &lv_font_montserrat_36, 0);
+    lv_obj_set_style_text_font(needle_mute_label, &lv_font_montserrat_18, 0);
     lv_obj_align(needle_mute_label, LV_ALIGN_BOTTOM_LEFT, 2, 0);
     lv_obj_add_flag(needle_mute_label, LV_OBJ_FLAG_HIDDEN);
 
@@ -307,7 +312,7 @@ void needle_create_labels(lv_obj_t * parent) {
     lv_obj_align(needle_frequency_label, LV_ALIGN_BOTTOM_RIGHT, 0, 0);
 
     lv_style_init(&needle_frequency_label_style);
-    lv_style_set_text_font(&needle_frequency_label_style, &lv_font_montserrat_36);
+    lv_style_set_text_font(&needle_frequency_label_style, &lv_font_montserrat_18);
     lv_obj_add_style(needle_frequency_label, &needle_frequency_label_style, 0);
 }
 
@@ -322,33 +327,33 @@ void needle_update_note_name(TunerNoteName new_value) {
     case NOTE_A_SHARP:
         show_sharp_symbol = true;
     case NOTE_A:
-        img_desc = &tuner_font_image_a2x;
+        img_desc = &tuner_font_image_a;
         break;
     case NOTE_B:
-        img_desc = &tuner_font_image_b2x;
+        img_desc = &tuner_font_image_b;
         break;
     case NOTE_C_SHARP:
         show_sharp_symbol = true;
     case NOTE_C:
-        img_desc = &tuner_font_image_c2x;
+        img_desc = &tuner_font_image_c;
         break;
     case NOTE_D_SHARP:
         show_sharp_symbol = true;
     case NOTE_D:
-        img_desc = &tuner_font_image_d2x;
+        img_desc = &tuner_font_image_d;
         break;
     case NOTE_E:
-        img_desc = &tuner_font_image_e2x;
+        img_desc = &tuner_font_image_e;
         break;
     case NOTE_F_SHARP:
         show_sharp_symbol = true;
     case NOTE_F:
-        img_desc = &tuner_font_image_f2x;
+        img_desc = &tuner_font_image_f;
         break;
     case NOTE_G_SHARP:
         show_sharp_symbol = true;
     case NOTE_G:
-        img_desc = &tuner_font_image_g2x;
+        img_desc = &tuner_font_image_g;
         break;
     case NOTE_NONE:
         show_note_fade_anim = true;
@@ -410,7 +415,7 @@ void needle_last_note_anim_completed_cb(lv_anim_t *) {
     // The animation has completed so hide the note name and set
     // the opacity back to 100%.
     lv_obj_add_flag(needle_sharp_img, LV_OBJ_FLAG_HIDDEN);
-    lv_image_set_src(needle_note_img, &tuner_font_image_none2x);
+    lv_image_set_src(needle_note_img, &tuner_font_image_none);
     needle_last_displayed_note = NOTE_NONE;
 
     // Hide the pitch indicator bar

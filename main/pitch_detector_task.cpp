@@ -177,14 +177,14 @@ void pitch_detector_task(void *pvParameter) {
 
     s_task_handle = xTaskGetCurrentTaskHandle();
     
-    adc_continuous_handle_t handle = NULL;
-    continuous_adc_init(channel, sizeof(channel) / sizeof(adc_channel_t), &handle);
+    // adc_continuous_handle_t handle = NULL;
+    // continuous_adc_init(channel, sizeof(channel) / sizeof(adc_channel_t), &handle);
 
-    adc_continuous_evt_cbs_t cbs = {
-        .on_conv_done = s_conv_done_cb,
-    };
-    ESP_ERROR_CHECK(adc_continuous_register_event_callbacks(handle, &cbs, NULL));
-    ESP_ERROR_CHECK(adc_continuous_start(handle));
+    // adc_continuous_evt_cbs_t cbs = {
+    //     .on_conv_done = s_conv_done_cb,
+    // };
+    // ESP_ERROR_CHECK(adc_continuous_register_event_callbacks(handle, &cbs, NULL));
+    // ESP_ERROR_CHECK(adc_continuous_start(handle));
 
     // adc_ll_digi_set_convert_limit_num(2); // potential hack for the ESP32 ADC bug
 
@@ -208,7 +208,8 @@ void pitch_detector_task(void *pvParameter) {
 
             std::vector<float> in(TUNER_ADC_FRAME_SIZE); // a vector of values to pass into qlib
 
-            ret = adc_continuous_read(handle, adc_buffer, TUNER_ADC_FRAME_SIZE, &num_of_bytes_read, portMAX_DELAY);
+            // ret = adc_continuous_read(handle, adc_buffer, TUNER_ADC_FRAME_SIZE, &num_of_bytes_read, portMAX_DELAY);
+            ret = ESP_ERR_INVALID_ARG;
             if (ret == ESP_OK) {
                 // ESP_LOGI(TAG, "ret is %x, num_of_bytes_read is %"PRIu32" bytes", ret, num_of_bytes_read);
 
@@ -355,6 +356,6 @@ void pitch_detector_task(void *pvParameter) {
 
     free(adc_buffer);
 
-    ESP_ERROR_CHECK(adc_continuous_stop(handle));
-    ESP_ERROR_CHECK(adc_continuous_deinit(handle));
+    // ESP_ERROR_CHECK(adc_continuous_stop(handle));
+    // ESP_ERROR_CHECK(adc_continuous_deinit(handle));
 }

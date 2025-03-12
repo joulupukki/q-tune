@@ -28,7 +28,6 @@
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/queue.h"
-#include "esp_adc/adc_continuous.h"
 #include "esp_timer.h"
 
 #include <esp_lcd_panel_io.h>
@@ -39,6 +38,7 @@
 // #include <lvgl.h>
 // #include "esp_lcd_panel_rgb.h"
 
+#include "waveshare.h"
 
 #include <cmath> // for log2()
 
@@ -59,7 +59,7 @@
 extern "C" { // because these files are C and not C++
     // #include "lcd.h"
     // #include "touch.h"
-    #include "ST7701S.h"
+    // #include "ST7701S.h"
 }
 
 static const char *TAG = "GUI";
@@ -85,13 +85,10 @@ static esp_err_t app_lvgl_main();
 static esp_lcd_panel_io_handle_t lcd_io;
 static esp_lcd_panel_handle_t lcd_panel;
 
-static void *buf1 = NULL;
-static void *buf2 = NULL;
-
 lv_coord_t screen_width = 0;
 lv_coord_t screen_height = 0;
 
-lv_display_t *lvgl_display = NULL;
+extern lv_display_t *lvgl_display;
 lv_obj_t *main_screen = NULL;
 
 bool is_gui_loaded = false;
@@ -190,94 +187,6 @@ TunerGUIInterface get_active_gui() {
     return active_gui;
 }
 
-/// @brief Flush callback for LVGL to draw the display.
-/// 
-/// This function is called by LVGL to flush a specific area of the display with pixel data.
-/// 
-/// @param display Pointer to the LVGL display.
-/// @param area Pointer to the area to be flushed.
-/// @param px_map Pointer to the pixel data to be drawn.
-void lvgl_port_flush_cb(lv_display_t *display, const lv_area_t *area, uint8_t *px_map) {
-    esp_lcd_panel_draw_bitmap(lcd_panel, area->x1, area->y1, area->x2 + 1, area->y2 + 1, px_map);
-    lv_display_flush_ready(display);
-}
-
-bool spi_trans_done_cb(esp_lcd_panel_io_handle_t panel_io, esp_lcd_panel_io_event_data_t *edata, void *user_ctx) {
-    if (!user_ctx) {
-        return false;
-    }
-    lv_display_flush_ready((lv_display_t *)user_ctx);
-    return false; // return true if a higher priority task needs a reschedule
-}
-
-static void tick_timer_cb(void *arg)
-{
-    /* Tell LVGL how many milliseconds has elapsed */
-    lv_tick_inc(5);
-}
-
-esp_err_t lvgl_init() {
-    
-    lv_init();
-    const esp_timer_create_args_t tick_timer_args = {
-        .callback = &tick_timer_cb,
-        .name = "tick_timer"
-    };
-    esp_timer_handle_t tick_timer = NULL;
-    ESP_ERROR_CHECK(esp_timer_create(&tick_timer_args, &tick_timer));
-    // ESP_ERROR_CHECK(esp_timer_start_periodic(tick_timer, 1 + 1000));  // every 1 milliseconds
-    ESP_ERROR_CHECK(esp_timer_start_periodic(tick_timer, 5 * 1000));  // every 5 milliseconds
-
-    // const lvgl_port_cfg_t lvgl_cfg = {
-    //     .task_priority = 4,
-    //     .task_stack = 4096,
-    //     .task_affinity = -1,
-    //     .task_max_sleep_ms = 500,
-    //     .timer_period_ms = 5
-    // };
-
-    // esp_err_t e = lvgl_port_init(&lvgl_cfg); // This also calls lv_init()
-    // ESP_LOGI(TAG, "lvgl_port_init() returned %s", esp_err_to_name(e));
-    
-    lvgl_display = lv_display_create(LCD_H_RES, LCD_V_RES);
-    lv_display_set_flush_cb(lvgl_display, lvgl_port_flush_cb);
-
-    // esp_lcd_panel_io_spi_config_t panel_io_config = {
-    //     .cs_gpio_num = LCD_CS,
-    //     .dc_gpio_num = -1,
-    //     .spi_mode = 0,
-    //     .pclk_hz = LCD_PIXEL_CLOCK_HZ,
-    //     .trans_queue_depth = 10,
-    //     .on_color_trans_done = spi_trans_done_cb,
-    //     .user_ctx = lvgl_display,
-    //     .lcd_cmd_bits = 1,
-    //     .lcd_param_bits = 8,
-    // };
-
-    // esp_lcd_new_panel_io_spi(SPI2_HOST, &panel_io_config, &lcd_io);
-
-    // Allocate and set the display buffers
-    buf1 = heap_caps_malloc(LCD_DRAWBUF_SIZE, MALLOC_CAP_INTERNAL | MALLOC_CAP_DMA);
-    assert(buf1);
-    buf2 = heap_caps_malloc(LCD_DRAWBUF_SIZE, MALLOC_CAP_INTERNAL | MALLOC_CAP_DMA);
-    assert(buf2);
-    // buf1 = heap_caps_malloc(LCD_DRAWBUF_SIZE, MALLOC_CAP_SPIRAM);
-    // assert(buf1);
-    // buf2 = heap_caps_malloc(LCD_DRAWBUF_SIZE, MALLOC_CAP_SPIRAM);
-    // assert(buf2);
-
-    lv_display_set_buffers(lvgl_display, buf1, buf2, LCD_DRAWBUF_SIZE, LV_DISPLAY_RENDER_MODE_PARTIAL);
-
-    if (lvgl_port_lock(0)) {
-        ESP_ERROR_CHECK(lcd_display_brightness_set(userSettings->displayBrightness * 10 + 10)); // Adjust for 0 - 10%, 1 - 20%, etc.
-        ESP_ERROR_CHECK(lcd_display_rotate(lvgl_display, userSettings->getDisplayOrientation()));
-        // ESP_ERROR_CHECK(lcd_display_rotate(lvgl_display, LV_DISPLAY_ROTATION_0)); // Upside Down
-        lvgl_port_unlock();
-    }
-
-    return ESP_OK;
-}
-
 /// @brief The main GUI task.
 ///
 /// This is the main GUI FreeRTOS task and is declared as an extern in main.cpp.
@@ -285,9 +194,18 @@ esp_err_t lvgl_init() {
 /// @param pvParameter User data (unused).
 void tuner_gui_task(void *pvParameter) {
 
-    ESP_ERROR_CHECK(LCD_Init(&lcd_panel));
-    ESP_ERROR_CHECK(lvgl_init());
+    ESP_ERROR_CHECK(waveshare_lvgl_init());
+    ESP_ERROR_CHECK(waveshare_lcd_init());
     ESP_ERROR_CHECK(app_lvgl_main());
+    
+    // lv_obj_t *label = lv_label_create(lv_screen_active());
+    // lv_label_set_text(label, "Hello world.");
+    // lv_obj_align(label, LV_ALIGN_CENTER, 0, 0);
+
+    // while(1) {
+    //     lv_timer_handler();
+    //     vTaskDelay(pdMS_TO_TICKS(33));
+    // }
 
     is_gui_loaded = true; // Prevents some other threads that rely on LVGL from running until the UI is loaded
 
@@ -333,6 +251,7 @@ void tuner_gui_task(void *pvParameter) {
 }
 
 void update_ui(TunerState old_state, TunerState new_state) {
+    ESP_LOGI(TAG, "Old State: %d, New State: %d", old_state, new_state);
     if (!lvgl_port_lock(0)) {
         return;
     }

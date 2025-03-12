@@ -29,10 +29,19 @@ set(SRCS
 
     utils/OneEuroFilter.cpp
 
-    hardware/I2C_Driver.c
-    hardware/ST7701S.c
-    hardware/Buzzer.c
-    hardware/TCA9554PWR.c
+    # hardware/I2C_Driver.c
+    # hardware/ST7701S.c
+    # hardware/Buzzer.c
+    # hardware/TCA9554PWR.c
+    hardware/ads101x.c
+
+    # waveshare/CST328.c
+    waveshare/esp_lcd_touch/esp_lcd_touch.c
+    waveshare/I2C_Driver.c
+    waveshare/LVGL_Driver.c
+    waveshare/ST7789.c
+    waveshare/Vernon_ST7789T/Vernon_ST7789T.c
+    waveshare/waveshare.c
 )
 
 set(INCLUDE_DIRS
@@ -42,6 +51,9 @@ set(INCLUDE_DIRS
     standby-ui
     tuning-ui
     utils
+    waveshare
+    waveshare/esp_lcd_touch
+    waveshare/Vernon_ST7789T
 )
 
 idf_component_register(

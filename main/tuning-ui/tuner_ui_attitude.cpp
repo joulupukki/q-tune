@@ -47,15 +47,15 @@ extern UserSettings *userSettings;
 extern lv_coord_t screen_width;
 extern lv_coord_t screen_height;
 
-LV_IMG_DECLARE(tuner_font_image_a2x)
-LV_IMG_DECLARE(tuner_font_image_b2x)
-LV_IMG_DECLARE(tuner_font_image_c2x)
-LV_IMG_DECLARE(tuner_font_image_d2x)
-LV_IMG_DECLARE(tuner_font_image_e2x)
-LV_IMG_DECLARE(tuner_font_image_f2x)
-LV_IMG_DECLARE(tuner_font_image_g2x)
-LV_IMG_DECLARE(tuner_font_image_none2x)
-LV_IMG_DECLARE(tuner_font_image_sharp2x)
+LV_IMG_DECLARE(tuner_font_image_a)
+LV_IMG_DECLARE(tuner_font_image_b)
+LV_IMG_DECLARE(tuner_font_image_c)
+LV_IMG_DECLARE(tuner_font_image_d)
+LV_IMG_DECLARE(tuner_font_image_e)
+LV_IMG_DECLARE(tuner_font_image_f)
+LV_IMG_DECLARE(tuner_font_image_g)
+LV_IMG_DECLARE(tuner_font_image_none)
+LV_IMG_DECLARE(tuner_font_image_sharp)
 
 //
 // Function Definitions
@@ -285,11 +285,11 @@ void attitude_create_labels(lv_obj_t * parent) {
 
     // Note Name Image (the big name in the middle of the screen)
     attitude_note_img = lv_image_create(attitude_note_img_container);
-    lv_image_set_src(attitude_note_img, &tuner_font_image_none2x);
+    lv_image_set_src(attitude_note_img, &tuner_font_image_none);
     lv_obj_center(attitude_note_img);
 
     attitude_sharp_img = lv_image_create(attitude_note_img_container);
-    lv_image_set_src(attitude_sharp_img, &tuner_font_image_sharp2x);
+    lv_image_set_src(attitude_sharp_img, &tuner_font_image_sharp);
     lv_obj_align_to(attitude_sharp_img, attitude_note_img, LV_ALIGN_TOP_RIGHT, 40, -30);
     lv_obj_add_flag(attitude_sharp_img, LV_OBJ_FLAG_HIDDEN);
     
@@ -308,7 +308,7 @@ void attitude_create_labels(lv_obj_t * parent) {
     // MUTE label (for monitoring mode)
     attitude_mute_label = lv_label_create(parent);
     lv_label_set_text_static(attitude_mute_label, "MUTE");
-    lv_obj_set_style_text_font(attitude_mute_label, &lv_font_montserrat_36, 0);
+    lv_obj_set_style_text_font(attitude_mute_label, &lv_font_montserrat_18, 0);
     lv_obj_align(attitude_mute_label, LV_ALIGN_TOP_LEFT, 2, 0);
     lv_obj_add_flag(attitude_mute_label, LV_OBJ_FLAG_HIDDEN);
 
@@ -322,7 +322,7 @@ void attitude_create_labels(lv_obj_t * parent) {
     lv_obj_align(attitude_frequency_label, LV_ALIGN_BOTTOM_RIGHT, -2, 0);
 
     lv_style_init(&attitude_frequency_label_style);
-    lv_style_set_text_font(&attitude_frequency_label_style, &lv_font_montserrat_36);
+    lv_style_set_text_font(&attitude_frequency_label_style, &lv_font_montserrat_18);
     lv_obj_add_style(attitude_frequency_label, &attitude_frequency_label_style, 0);
     lv_obj_add_flag(attitude_frequency_label, LV_OBJ_FLAG_HIDDEN);
 
@@ -330,7 +330,7 @@ void attitude_create_labels(lv_obj_t * parent) {
     attitude_cents_label = lv_label_create(parent);
     
     lv_style_init(&attitude_cents_label_style);
-    lv_style_set_text_font(&attitude_cents_label_style, &lv_font_montserrat_36);
+    lv_style_set_text_font(&attitude_cents_label_style, &lv_font_montserrat_18);
     lv_obj_add_style(attitude_cents_label, &attitude_cents_label_style, 0);
 
     lv_obj_set_width(attitude_cents_label, screen_width / 2);
@@ -400,33 +400,33 @@ void attitude_update_note_name(TunerNoteName new_value) {
     case NOTE_A_SHARP:
         show_sharp_symbol = true;
     case NOTE_A:
-        img_desc = &tuner_font_image_a2x;
+        img_desc = &tuner_font_image_a;
         break;
     case NOTE_B:
-        img_desc = &tuner_font_image_b2x;
+        img_desc = &tuner_font_image_b;
         break;
     case NOTE_C_SHARP:
         show_sharp_symbol = true;
     case NOTE_C:
-        img_desc = &tuner_font_image_c2x;
+        img_desc = &tuner_font_image_c;
         break;
     case NOTE_D_SHARP:
         show_sharp_symbol = true;
     case NOTE_D:
-        img_desc = &tuner_font_image_d2x;
+        img_desc = &tuner_font_image_d;
         break;
     case NOTE_E:
-        img_desc = &tuner_font_image_e2x;
+        img_desc = &tuner_font_image_e;
         break;
     case NOTE_F_SHARP:
         show_sharp_symbol = true;
     case NOTE_F:
-        img_desc = &tuner_font_image_f2x;
+        img_desc = &tuner_font_image_f;
         break;
     case NOTE_G_SHARP:
         show_sharp_symbol = true;
     case NOTE_G:
-        img_desc = &tuner_font_image_g2x;
+        img_desc = &tuner_font_image_g;
         break;
     case NOTE_NONE:
         show_note_fade_anim = true;
@@ -488,7 +488,7 @@ void attitude_last_note_anim_completed_cb(lv_anim_t *) {
     // The animation has completed so hide the note name and set
     // the opacity back to 100%.
     lv_obj_add_flag(attitude_sharp_img, LV_OBJ_FLAG_HIDDEN);
-    lv_image_set_src(attitude_note_img, &tuner_font_image_none2x);
+    lv_image_set_src(attitude_note_img, &tuner_font_image_none);
     attitude_last_displayed_note = NOTE_NONE;
 
     attitude_stop_note_fade_animation();

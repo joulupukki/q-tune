@@ -32,7 +32,7 @@
 
 extern "C" { // because these files are C and not C++
     // #include "lcd.h"
-    #include "ST7701S.h"
+    // #include "ST7701S.h"
 }
 
 #include "nvs_flash.h"

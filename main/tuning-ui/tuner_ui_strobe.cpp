@@ -32,15 +32,15 @@ extern UserSettings *userSettings;
 extern lv_coord_t screen_width;
 extern lv_coord_t screen_height;
 
-LV_IMG_DECLARE(tuner_font_image_a2x)
-LV_IMG_DECLARE(tuner_font_image_b2x)
-LV_IMG_DECLARE(tuner_font_image_c2x)
-LV_IMG_DECLARE(tuner_font_image_d2x)
-LV_IMG_DECLARE(tuner_font_image_e2x)
-LV_IMG_DECLARE(tuner_font_image_f2x)
-LV_IMG_DECLARE(tuner_font_image_g2x)
-LV_IMG_DECLARE(tuner_font_image_none2x)
-LV_IMG_DECLARE(tuner_font_image_sharp2x)
+LV_IMG_DECLARE(tuner_font_image_a)
+LV_IMG_DECLARE(tuner_font_image_b)
+LV_IMG_DECLARE(tuner_font_image_c)
+LV_IMG_DECLARE(tuner_font_image_d)
+LV_IMG_DECLARE(tuner_font_image_e)
+LV_IMG_DECLARE(tuner_font_image_f)
+LV_IMG_DECLARE(tuner_font_image_g)
+LV_IMG_DECLARE(tuner_font_image_none)
+LV_IMG_DECLARE(tuner_font_image_sharp)
 
 //
 // Function Definitions
@@ -186,11 +186,11 @@ void strobe_create_labels(lv_obj_t * parent) {
 
     // Note Name Image (the big name in the middle of the screen)
     strobe_note_img = lv_image_create(strobe_note_img_container);
-    lv_image_set_src(strobe_note_img, &tuner_font_image_none2x);
+    lv_image_set_src(strobe_note_img, &tuner_font_image_none);
     lv_obj_center(strobe_note_img);
 
     strobe_sharp_img = lv_image_create(strobe_note_img_container);
-    lv_image_set_src(strobe_sharp_img, &tuner_font_image_sharp2x);
+    lv_image_set_src(strobe_sharp_img, &tuner_font_image_sharp);
     lv_obj_align_to(strobe_sharp_img, strobe_note_img, LV_ALIGN_TOP_RIGHT, 140, -90);
     lv_obj_add_flag(strobe_sharp_img, LV_OBJ_FLAG_HIDDEN);
     
@@ -209,7 +209,7 @@ void strobe_create_labels(lv_obj_t * parent) {
     // MUTE label (for monitoring mode)
     strobe_mute_label = lv_label_create(parent);
     lv_label_set_text_static(strobe_mute_label, "MUTE");
-    lv_obj_set_style_text_font(strobe_mute_label, &lv_font_montserrat_36, 0);
+    lv_obj_set_style_text_font(strobe_mute_label, &lv_font_montserrat_18, 0);
     lv_obj_align(strobe_mute_label, LV_ALIGN_TOP_LEFT, 2, 0);
     lv_obj_add_flag(strobe_mute_label, LV_OBJ_FLAG_HIDDEN);
 
@@ -223,7 +223,7 @@ void strobe_create_labels(lv_obj_t * parent) {
     lv_obj_align(strobe_frequency_label, LV_ALIGN_BOTTOM_RIGHT, 0, 0);
 
     lv_style_init(&strobe_frequency_label_style);
-    lv_style_set_text_font(&strobe_frequency_label_style, &lv_font_montserrat_36);
+    lv_style_set_text_font(&strobe_frequency_label_style, &lv_font_montserrat_18);
     lv_obj_add_style(strobe_frequency_label, &strobe_frequency_label_style, 0);
     lv_obj_add_flag(strobe_frequency_label, LV_OBJ_FLAG_HIDDEN);
 
@@ -231,7 +231,7 @@ void strobe_create_labels(lv_obj_t * parent) {
     strobe_cents_label = lv_label_create(parent);
     
     lv_style_init(&strobe_cents_label_style);
-    lv_style_set_text_font(&strobe_cents_label_style, &lv_font_montserrat_36);
+    lv_style_set_text_font(&strobe_cents_label_style, &lv_font_montserrat_18);
     lv_obj_add_style(strobe_cents_label, &strobe_cents_label_style, 0);
 
     lv_obj_set_width(strobe_cents_label, screen_width / 2);
@@ -304,33 +304,33 @@ void strobe_update_note_name(TunerNoteName new_value) {
     case NOTE_A_SHARP:
         show_sharp_symbol = true;
     case NOTE_A:
-        img_desc = &tuner_font_image_a2x;
+        img_desc = &tuner_font_image_a;
         break;
     case NOTE_B:
-        img_desc = &tuner_font_image_b2x;
+        img_desc = &tuner_font_image_b;
         break;
     case NOTE_C_SHARP:
         show_sharp_symbol = true;
     case NOTE_C:
-        img_desc = &tuner_font_image_c2x;
+        img_desc = &tuner_font_image_c;
         break;
     case NOTE_D_SHARP:
         show_sharp_symbol = true;
     case NOTE_D:
-        img_desc = &tuner_font_image_d2x;
+        img_desc = &tuner_font_image_d;
         break;
     case NOTE_E:
-        img_desc = &tuner_font_image_e2x;
+        img_desc = &tuner_font_image_e;
         break;
     case NOTE_F_SHARP:
         show_sharp_symbol = true;
     case NOTE_F:
-        img_desc = &tuner_font_image_f2x;
+        img_desc = &tuner_font_image_f;
         break;
     case NOTE_G_SHARP:
         show_sharp_symbol = true;
     case NOTE_G:
-        img_desc = &tuner_font_image_g2x;
+        img_desc = &tuner_font_image_g;
         break;
     case NOTE_NONE:
         show_note_fade_anim = true;
@@ -398,7 +398,7 @@ void strobe_update_note_name(TunerNoteName new_value) {
 //     // The animation has completed so hide the note name and set
 //     // the opacity back to 100%.
 //     lv_obj_add_flag(strobe_sharp_img, LV_OBJ_FLAG_HIDDEN);
-//     lv_image_set_src(strobe_note_img, &tuner_font_image_none2x);
+//     lv_image_set_src(strobe_note_img, &tuner_font_image_none);
 //     strobe_last_displayed_note = NOTE_NONE;
 
 //     // Hide the strobe arcs
@@ -417,7 +417,7 @@ void strobe_switch_to_none_note(lv_timer_t *timer) {
     lv_timer_del(strobe_fade_timer);
     strobe_fade_timer = NULL;
 
-    lv_image_set_src(strobe_note_img, &tuner_font_image_none2x);
+    lv_image_set_src(strobe_note_img, &tuner_font_image_none);
     lv_obj_add_flag(strobe_sharp_img, LV_OBJ_FLAG_HIDDEN);
 
     lvgl_port_unlock();

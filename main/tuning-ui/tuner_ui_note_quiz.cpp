@@ -239,11 +239,11 @@ void quiz_create_labels(lv_obj_t * parent) {
 
     // Target Note Name Image (the big name at the top of the screen)
     quiz_note_img = lv_image_create(quiz_note_img_container);
-    lv_image_set_src(quiz_note_img, &tuner_font_image_none2x);
+    lv_image_set_src(quiz_note_img, &tuner_font_image_none);
     lv_obj_center(quiz_note_img);
 
     quiz_sharp_img = lv_image_create(quiz_note_img_container);
-    lv_image_set_src(quiz_sharp_img, &tuner_font_image_sharp2x);
+    lv_image_set_src(quiz_sharp_img, &tuner_font_image_sharp);
     lv_obj_align_to(quiz_sharp_img, quiz_note_img, LV_ALIGN_TOP_RIGHT, 40, -30);
     lv_obj_add_flag(quiz_sharp_img, LV_OBJ_FLAG_HIDDEN);
     
@@ -282,7 +282,7 @@ void quiz_create_labels(lv_obj_t * parent) {
     // MUTE label (for monitoring mode)
     quiz_mute_label = lv_label_create(parent);
     lv_label_set_text_static(quiz_mute_label, "MUTE");
-    lv_obj_set_style_text_font(quiz_mute_label, &lv_font_montserrat_36, 0);
+    lv_obj_set_style_text_font(quiz_mute_label, &lv_font_montserrat_18, 0);
     lv_obj_align(quiz_mute_label, LV_ALIGN_TOP_LEFT, 2, 0);
     lv_obj_add_flag(quiz_mute_label, LV_OBJ_FLAG_HIDDEN);
 
@@ -296,7 +296,7 @@ void quiz_create_labels(lv_obj_t * parent) {
     lv_obj_align(quiz_frequency_label, LV_ALIGN_RIGHT_MID, -2, 0);
 
     lv_style_init(&quiz_frequency_label_style);
-    lv_style_set_text_font(&quiz_frequency_label_style, &lv_font_montserrat_36);
+    lv_style_set_text_font(&quiz_frequency_label_style, &lv_font_montserrat_18);
     lv_obj_add_style(quiz_frequency_label, &quiz_frequency_label_style, 0);
     lv_obj_add_flag(quiz_frequency_label, LV_OBJ_FLAG_HIDDEN);
 
@@ -304,7 +304,7 @@ void quiz_create_labels(lv_obj_t * parent) {
     quiz_cents_label = lv_label_create(parent);
     
     lv_style_init(&quiz_cents_label_style);
-    lv_style_set_text_font(&quiz_cents_label_style, &lv_font_montserrat_36);
+    lv_style_set_text_font(&quiz_cents_label_style, &lv_font_montserrat_18);
     lv_obj_add_style(quiz_cents_label, &quiz_cents_label_style, 0);
 
     lv_obj_set_width(quiz_cents_label, screen_width / 2);
@@ -429,7 +429,7 @@ void quiz_set_new_target_note() {
     }
     quiz_upcoming_note = get_random_note();
 
-    quiz_update_note_name(quiz_note_img, quiz_sharp_img, quiz_current_target_note, true);
+    quiz_update_note_name(quiz_note_img, quiz_sharp_img, quiz_current_target_note, false);
     quiz_update_note_name(quiz_next_note_img, quiz_next_sharp_img, quiz_upcoming_note, false);
 }
 

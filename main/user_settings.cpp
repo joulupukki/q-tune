@@ -20,6 +20,7 @@
 
 #include "tuner_controller.h"
 #include "tuner_ui_interface.h"
+#include "waveshare.h"
 
 static const char *TAG = "Settings";
 
@@ -159,14 +160,15 @@ void UserSettings::loadSettings() {
     uint8_t value;
     uint32_t value32;
 
-    if (nvs_get_u8(nvsHandle, SETTINGS_INITIAL_SCREEN, &value) == ESP_OK) {
-        initialState = (TunerState)value;
-    } else {
-        initialState = DEFAULT_INITIAL_STATE;
-    }
-    if (initialState == tunerStateBooting) {
-        initialState = DEFAULT_INITIAL_STATE;
-    }
+    // if (nvs_get_u8(nvsHandle, SETTINGS_INITIAL_SCREEN, &value) == ESP_OK) {
+    //     initialState = (TunerState)value;
+    // } else {
+    //     initialState = DEFAULT_INITIAL_STATE;
+    // }
+    // if (initialState == tunerStateBooting) {
+    //     initialState = DEFAULT_INITIAL_STATE;
+    // }
+    initialState = tunerStateStandby;
     ESP_LOGI(TAG, "Initial State: %d", initialState);
 
     if (nvs_get_u8(nvsHandle, SETTING_STANDBY_GUI_INDEX, &value) == ESP_OK) {
@@ -770,7 +772,7 @@ void UserSettings::createSpinbox(const char *title, uint32_t minRange, uint32_t 
 
     lv_obj_t * spinbox = lv_spinbox_create(scr);
     lv_spinbox_set_range(spinbox, minRange, maxRange);
-    lv_obj_set_style_text_font(spinbox, &lv_font_montserrat_36, 0);
+    lv_obj_set_style_text_font(spinbox, &lv_font_montserrat_18, 0);
     lv_spinbox_set_digit_format(spinbox, digitCount, separatorPosition);
     ESP_LOGI(TAG, "Setting initial spinbox value of: %f / %f", *spinboxValue, conversionFactor);
     lv_spinbox_set_value(spinbox, *spinboxValue / conversionFactor);
