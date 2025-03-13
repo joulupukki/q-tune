@@ -44,15 +44,10 @@ TunerState TunerController::getState() {
 }
 
 void TunerController::setState(TunerState new_state) {
-    ESP_LOGI(TAG, "1");
     TunerState old_state = getState();
-    ESP_LOGI(TAG, "2");
     stateWillChangeCallback(old_state, new_state);
-    ESP_LOGI(TAG, "3");
     xQueueOverwrite(tunerStateQueue, &new_state);
-    ESP_LOGI(TAG, "4");
     stateDidChangeCallback(old_state, new_state);
-    ESP_LOGI(TAG, "5");
 }
 
 void TunerController::footswitchPressed(FootswitchPress press) {

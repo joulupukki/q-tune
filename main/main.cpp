@@ -28,12 +28,6 @@
 #include "tuner_controller.h"
 #include "tuner_gui_task.h"
 
-//
-// External ADC
-//
-#include "driver/i2c_master.h"
-#include "ads101x.h"
-
 extern "C" { // because these files are C and not C++
     #include "I2C_Driver.h"
 }
@@ -41,17 +35,6 @@ extern "C" { // because these files are C and not C++
 extern void gpio_task(void *pvParameter);
 extern void tuner_gui_task(void *pvParameter);
 extern void pitch_detector_task(void *pvParameter);
-
-extern i2c_master_bus_handle_t i2c_bus_handle;
-
-i2c_master_dev_handle_t ads1015_dev_handle;
-ads101x_t adc_handle = {
-    .i2c_dev = ads1015_dev_handle,
-    .model = ADS101X_MODEL_5,
-    .gain = ADS101X_GAIN_ONE,
-    .data_rate = ADS101X_DATA_RATE_3300SPS,
-    .int_en = 0,    // Disable interrupt
-};
 
 TunerController *tunerController;
 UserSettings *userSettings;
@@ -131,17 +114,6 @@ void user_settings_changed_cb() {
 void user_settings_will_exit_cb() {
 }
 
-void ads1015_delay_ms(uint32_t time)
-{
-    vTaskDelay(pdMS_TO_TICKS(time));
-}
-
-esp_err_t ads1015_init() {
-    ESP_ERROR_CHECK(ads101x_init(&adc_handle, ADS101X_MODEL_5, i2c_bus_handle, ADS101X_I2C_ADDRESS, ads1015_delay_ms));
-
-    return ESP_OK;
-}
-
 extern "C" void app_main() {
 
     // Initialize NVS (Persistent Flash Storage for User Settings)
@@ -149,7 +121,6 @@ extern "C" void app_main() {
     user_settings_changed_cb(); // Calling this allows the pitch detector and tuner UI to initialize properly with current user
 
     I2C_Init();
-    // ads1015_init();
 
     tunerController = new TunerController(tuner_state_will_change_cb, tuner_state_did_change_cb, footswitch_pressed_cb);
 

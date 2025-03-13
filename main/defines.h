@@ -99,9 +99,16 @@
 // #define TUNER_ADC_SAMPLE_RATE           (48 * 1000) // 48kHz
 
 // EBD4 @ 5kHz
-#define TUNER_ADC_FRAME_SIZE            (SOC_ADC_DIGI_DATA_BYTES_PER_CONV * 64)
-#define TUNER_ADC_BUFFER_POOL_SIZE      (TUNER_ADC_FRAME_SIZE * 4)
-#define TUNER_ADC_SAMPLE_RATE           (5 * 1000) // 5kHz 
+// #define TUNER_ADC_FRAME_SIZE            (SOC_ADC_DIGI_DATA_BYTES_PER_CONV * 64)
+// #define TUNER_ADC_BUFFER_POOL_SIZE      (TUNER_ADC_FRAME_SIZE * 4)
+// #define TUNER_ADC_SAMPLE_RATE           (5 * 1000) // 5kHz 
+
+// EBD2 @ 3.3kHz with ADS1015 (External ADC)
+#define TUNER_ADC_SAMPLE_RATE               (3.3 * 1000) // 3.3kHz 
+#define TUNER_ADC_BUFFER_SIZE               300
+#define TUNER_ADC_NUM_OF_BUFFERS            6
+#define TUNER_ADC_ALERT_PIN                 GPIO_NUM_18
+#define TUNER_ADC_SAMPLE_INTERVAL           (1000000 / TUNER_ADC_SAMPLE_RATE) // microseconds to read one sample
 
 /// @brief This factor is used to correct the incoming frequency readings on ESP32-WROOM-32 (which CYD is). This same weird behavior does not happen on ESP32-S2 or ESP32-S3.
 // #define WEIRD_ESP32_WROOM_32_FREQ_FIX_FACTOR    1.2222222223 // 11/9 but using 11/9 gives completely incorrect results. Weird.
@@ -122,7 +129,8 @@
 // the frequency. This should help cut down on the noise from the
 // OLED and only attempt to read frequency information when an
 // actual input signal is being read.
-#define TUNER_READING_DIFF_MINIMUM      80 // approximately 80mV
+// #define TUNER_READING_DIFF_MINIMUM      80 // approximately 80mV
+#define TUNER_READING_DIFF_MINIMUM      50 //
 
 //
 // Smoothing
