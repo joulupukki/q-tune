@@ -28,6 +28,9 @@
 
 static const char *STROBE = "STROBE";
 
+#define STROBE_ARC_BOUNDS   200
+#define STROBE_ARC_WIDTH    12
+
 extern UserSettings *userSettings;
 extern lv_coord_t screen_width;
 extern lv_coord_t screen_height;
@@ -261,13 +264,13 @@ void strobe_create_arcs(lv_obj_t * parent) {
     lv_obj_remove_flag(strobe_arc2, LV_OBJ_FLAG_CLICKABLE);
     lv_obj_remove_flag(strobe_arc3, LV_OBJ_FLAG_CLICKABLE);
 
-    lv_obj_set_size(strobe_arc1, 400, 400);
-    lv_obj_set_size(strobe_arc2, 400, 400);
-    lv_obj_set_size(strobe_arc3, 400, 400);
+    lv_obj_set_size(strobe_arc1, STROBE_ARC_BOUNDS, STROBE_ARC_BOUNDS);
+    lv_obj_set_size(strobe_arc2, STROBE_ARC_BOUNDS, STROBE_ARC_BOUNDS);
+    lv_obj_set_size(strobe_arc3, STROBE_ARC_BOUNDS, STROBE_ARC_BOUNDS);
 
-    lv_obj_set_style_arc_width(strobe_arc1, 24, LV_PART_INDICATOR);
-    lv_obj_set_style_arc_width(strobe_arc2, 24, LV_PART_INDICATOR);
-    lv_obj_set_style_arc_width(strobe_arc3, 24, LV_PART_INDICATOR);
+    lv_obj_set_style_arc_width(strobe_arc1, STROBE_ARC_WIDTH, LV_PART_INDICATOR);
+    lv_obj_set_style_arc_width(strobe_arc2, STROBE_ARC_WIDTH, LV_PART_INDICATOR);
+    lv_obj_set_style_arc_width(strobe_arc3, STROBE_ARC_WIDTH, LV_PART_INDICATOR);
 
     lv_obj_set_style_arc_color(strobe_arc1, lv_color_white(), LV_PART_INDICATOR);
     lv_obj_set_style_arc_color(strobe_arc2, lv_color_white(), LV_PART_INDICATOR);
