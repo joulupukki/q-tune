@@ -35,7 +35,6 @@
 // #include <esp_lcd_panel_ops.h>
 // #include <driver/ledc.h>
 // #include <driver/spi_master.h>
-// #include <lvgl.h>
 // #include "esp_lcd_panel_rgb.h"
 
 #include "waveshare.h"
@@ -54,7 +53,7 @@
 // LVGL Support
 //
 #include "lvgl.h"
-// #include "esp_lvgl_port.h"
+#include "esp_lvgl_port.h"
 
 extern "C" { // because these files are C and not C++
     // #include "lcd.h"
@@ -194,13 +193,15 @@ TunerGUIInterface get_active_gui() {
 /// @param pvParameter User data (unused).
 void tuner_gui_task(void *pvParameter) {
 
-    ESP_ERROR_CHECK(waveshare_lvgl_init());
     ESP_ERROR_CHECK(waveshare_lcd_init());
+    ESP_ERROR_CHECK(waveshare_lvgl_init());
     ESP_ERROR_CHECK(app_lvgl_main());
     
+    // lvgl_port_lock(0);
     // lv_obj_t *label = lv_label_create(lv_screen_active());
     // lv_label_set_text(label, "Hello world.");
     // lv_obj_align(label, LV_ALIGN_CENTER, 0, 0);
+    // lvgl_port_unlock();
 
     // while(1) {
     //     lv_timer_handler();
@@ -211,6 +212,8 @@ void tuner_gui_task(void *pvParameter) {
 
     float cents;
 
+    ESP_LOGI(TAG, "Mem: %d", heap_caps_get_free_size(MALLOC_CAP_DMA));
+    
     // Use old_tuner_ui_state to keep track of the old state locally (in this
     // function).
     TunerState old_tuner_ui_state = tunerController->getState();

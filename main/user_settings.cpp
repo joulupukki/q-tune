@@ -160,15 +160,14 @@ void UserSettings::loadSettings() {
     uint8_t value;
     uint32_t value32;
 
-    // if (nvs_get_u8(nvsHandle, SETTINGS_INITIAL_SCREEN, &value) == ESP_OK) {
-    //     initialState = (TunerState)value;
-    // } else {
-    //     initialState = DEFAULT_INITIAL_STATE;
-    // }
-    // if (initialState == tunerStateBooting) {
-    //     initialState = DEFAULT_INITIAL_STATE;
-    // }
-    initialState = tunerStateStandby;
+    if (nvs_get_u8(nvsHandle, SETTINGS_INITIAL_SCREEN, &value) == ESP_OK) {
+        initialState = (TunerState)value;
+    } else {
+        initialState = DEFAULT_INITIAL_STATE;
+    }
+    if (initialState == tunerStateBooting) {
+        initialState = DEFAULT_INITIAL_STATE;
+    }
     ESP_LOGI(TAG, "Initial State: %d", initialState);
 
     if (nvs_get_u8(nvsHandle, SETTING_STANDBY_GUI_INDEX, &value) == ESP_OK) {

@@ -1,18 +1,13 @@
 #include "LVGL_Driver.h"
 
-static const char *TAG_LVGL = "LVGL";
+#include "esp_lvgl_port.h"
+#include "defines.h"
 
-void *buf1 = NULL;
-void *buf2 = NULL;
-// static lv_color_t buf1[ LVGL_BUF_LEN ];
-// static lv_color_t buf2[ LVGL_BUF_LEN];
-    
+static const char *TAG = "LVGL";
 
-extern esp_lcd_panel_handle_t panel_handle;
+extern esp_lcd_panel_io_handle_t lcd_io;
+extern esp_lcd_panel_handle_t lcd_panel;
 extern lv_display_t *lvgl_display;
-// lv_disp_draw_buf_t disp_buf;                                                 // contains internal graphic buffer(s) called draw buffer(s)
-// lv_disp_drv_t disp_drv;                                                      // contains callback functions
-// lv_indev_drv_t indev_drv;
 
 void increase_lvgl_tick(void *arg)
 {
@@ -94,41 +89,40 @@ void lvgl_flush_cb(lv_display_t *display, const lv_area_t *area, uint8_t * px_ma
 lv_disp_t *disp;
 void LVGL_Init(void)
 {
-    ESP_LOGI(TAG_LVGL, "Initialize LVGL library");
-    lv_init();
-    ESP_LOGI(TAG_LVGL, "Install LVGL tick timer");
-    // Tick interface for LVGL (using esp_timer to generate 2ms periodic event)
-    const esp_timer_create_args_t lvgl_tick_timer_args = {
-        .callback = &increase_lvgl_tick,
-        .name = "lvgl_tick"
+    const lvgl_port_cfg_t lvgl_cfg = {
+        .task_priority = 4,
+        .task_stack = 4096,
+        .task_affinity = -1,
+        .task_max_sleep_ms = 500,
+        .timer_period_ms = 5,
     };
-    
-    esp_timer_handle_t lvgl_tick_timer = NULL;
-    ESP_ERROR_CHECK(esp_timer_create(&lvgl_tick_timer_args, &lvgl_tick_timer));
-    ESP_ERROR_CHECK(esp_timer_start_periodic(lvgl_tick_timer, LVGL_TICK_PERIOD_MS * 1000));
 
-    lvgl_display = lv_display_create(LCD_H_RES, LCD_V_RES);
-    
-    lv_display_set_flush_cb(lvgl_display, lvgl_flush_cb);
+    esp_err_t e = lvgl_port_init(&lvgl_cfg);
+    if (e != ESP_OK) {
+        ESP_LOGI(TAG, "lvgl_port_init() failed: %s", esp_err_to_name(e));
+        return;
+    }
 
-    buf1 = heap_caps_malloc(LVGL_BUF_LEN, MALLOC_CAP_INTERNAL | MALLOC_CAP_DMA);
-    assert(buf1);
-    buf2 = heap_caps_malloc(LVGL_BUF_LEN, MALLOC_CAP_INTERNAL | MALLOC_CAP_DMA);
-    assert(buf2);
-    // buf1 = heap_caps_malloc(LVGL_BUF_LEN , MALLOC_CAP_SPIRAM);
-    // assert(buf1);
-    // buf2 = heap_caps_malloc(LVGL_BUF_LEN , MALLOC_CAP_SPIRAM);    
-    // assert(buf2);
+    ESP_LOGI(TAG, "Adding LCD Screen");
+    const lvgl_port_display_cfg_t disp_cfg = {
+        .io_handle = lcd_io,
+        .panel_handle = lcd_panel,
+        .buffer_size = LCD_DRAWBUF_SIZE * sizeof(uint16_t),
+        .double_buffer = LCD_DOUBLE_BUFFER,
+        .hres = LCD_H_RES,
+        .vres = LCD_V_RES,
+        .monochrome = false,
+        .rotation = {
+            .swap_xy = false,
+            .mirror_x = LCD_MIRROR_X,
+            .mirror_y = LCD_MIRROR_Y,
+        },
+        .flags = {
+            .buff_dma = true,
+            .buff_spiram = false,
+            .swap_bytes = false,
+        },
+    };
 
-    lv_display_set_buffers(lvgl_display, buf1, buf2, LVGL_BUF_LEN, LV_DISP_RENDER_MODE_PARTIAL);
-
-    // TODO: figure out how to register touch panel
-    
-    // lv_indev_drv_init ( &indev_drv );
-    // indev_drv.type = LV_INDEV_TYPE_POINTER;
-    // indev_drv.disp = disp;
-    // indev_drv.read_cb = touchpad_read;
-    // indev_drv.user_data = tp;
-    // lv_indev_drv_register( &indev_drv );
-
+    lvgl_display = lvgl_port_add_disp(&disp_cfg);
 }

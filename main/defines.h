@@ -25,13 +25,6 @@
 // RTOS Queues
 //
 
-inline bool lvgl_port_lock(int time) {
-    return true;
-}
-inline void lvgl_port_unlock() {
-
-}
-
 // The pitch detector task will always write the latest value of detection on
 // the queue. Use a length of 1 so we can use xQueueOverwrite and xQueuePeek so
 // the very latest frequency info is always available to anywhere.
@@ -51,7 +44,16 @@ inline void lvgl_port_unlock() {
 #define DOUBLE_PRESS_TIME_MS            250 // milliseconds
 #define DEBOUNCE_TIME_MS                50 // milliseconds
 
-#define LCD_MIRROR_X                    (false)
+//
+// LCD
+//
+#define LCD_H_RES                       240
+#define LCD_V_RES                       320
+#define LCD_BITS_PIXEL                  16
+#define LCD_BUF_LINES                   30
+#define LCD_DOUBLE_BUFFER               1
+#define LCD_DRAWBUF_SIZE                (LCD_H_RES * LCD_BUF_LINES)
+#define LCD_MIRROR_X                    (true)
 #define LCD_MIRROR_Y                    (false)
 
 //

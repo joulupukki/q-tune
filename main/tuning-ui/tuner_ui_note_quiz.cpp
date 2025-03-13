@@ -24,7 +24,7 @@
 #include "user_settings.h"
 
 #include "esp_log.h"
-// #include "esp_lvgl_port.h"
+#include "esp_lvgl_port.h"
 #include "esp_timer.h"
 #include "esp_random.h"
 

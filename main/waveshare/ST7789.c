@@ -1,28 +1,27 @@
 #include "ST7789.h"
 
-// #include "esp_lcd_panel_st7789.h"
+#include <esp_check.h>
+#include "defines.h"
 
-static const char *TAG_LCD = "ST7789";
+static const char *TAG = "ST7789";
 
-extern lv_display_t *lvgl_display;
+extern esp_lcd_panel_io_handle_t lcd_io;
+extern esp_lcd_panel_handle_t lcd_panel;
 
-esp_lcd_panel_handle_t panel_handle = NULL;
-
-void LCD_Init(void)
+esp_err_t LCD_Init(void)
 {
-    ESP_LOGI(TAG_LCD, "Initialize SPI bus");                                            
+    ESP_LOGI(TAG, "Initialize SPI bus");                                            
     spi_bus_config_t buscfg = {                                                         
         .sclk_io_num = PIN_NUM_SCLK,                                            
         .mosi_io_num = PIN_NUM_MOSI,                                            
         .miso_io_num = PIN_NUM_MISO,                                            
         .quadwp_io_num = -1,                                                            
         .quadhd_io_num = -1,                                                            
-        .max_transfer_sz = LCD_H_RES * LCD_V_RES * sizeof(uint16_t),    
+        .max_transfer_sz = LCD_DRAWBUF_SIZE * sizeof(uint16_t),    
     };
-    ESP_ERROR_CHECK(spi_bus_initialize(LCD_HOST, &buscfg, SPI_DMA_CH_AUTO));            
+    ESP_RETURN_ON_ERROR(spi_bus_initialize(LCD_HOST, &buscfg, SPI_DMA_CH_AUTO), TAG, "SPI init failed");
 
-    ESP_LOGI(TAG_LCD, "Install panel IO");                                              
-    esp_lcd_panel_io_handle_t io_handle = NULL;                                         
+    ESP_LOGI(TAG, "Install panel IO");
     esp_lcd_panel_io_spi_config_t io_config = {                                             
         .dc_gpio_num = PIN_NUM_LCD_DC,
         .cs_gpio_num = PIN_NUM_LCD_CS,
@@ -31,43 +30,29 @@ void LCD_Init(void)
         .lcd_param_bits = LCD_PARAM_BITS,
         .spi_mode = 0,
         .trans_queue_depth = 10,
-        .on_color_trans_done = lvgl_notify_lvgl_flush_ready,
-        .user_ctx = lvgl_display,
     };
     // Attach the LCD to the SPI bus
-    ESP_ERROR_CHECK(esp_lcd_new_panel_io_spi((esp_lcd_spi_bus_handle_t)LCD_HOST, &io_config, &io_handle));
-
-    // ESP_LOGI(TAG_LCD, "Install ST7789 panel driver");
-    // esp_lcd_panel_dev_config_t panel_dev_config = {
-    //     .reset_gpio_num = PIN_NUM_LCD_RST,
-    //     .rgb_endian = LCD_RGB_ENDIAN_BGR,
-    //     .bits_per_pixel = 16,
-    //     .flags = {
-    //         .reset_active_high = 1,
-    //     },
-    // };
-
-    // ESP_ERROR_CHECK(esp_lcd_new_panel_st7789(io_handle, &panel_dev_config, &panel_handle));
+    ESP_ERROR_CHECK(esp_lcd_new_panel_io_spi((esp_lcd_spi_bus_handle_t)LCD_HOST, &io_config, &lcd_io));
 
     esp_lcd_panel_dev_st7789t_config_t panel_config = {
         .reset_gpio_num = PIN_NUM_LCD_RST,
         .rgb_endian = LCD_RGB_ENDIAN_BGR,
         .bits_per_pixel = 16,
     };
-    ESP_ERROR_CHECK(esp_lcd_new_panel_st7789t(io_handle, &panel_config, &panel_handle));
+    ESP_RETURN_ON_ERROR(esp_lcd_new_panel_st7789t(lcd_io, &panel_config, &lcd_panel), TAG, "Failed to create new ST7789T panel");
 
-    ESP_ERROR_CHECK(esp_lcd_panel_reset(panel_handle));
-    ESP_ERROR_CHECK(esp_lcd_panel_init(panel_handle));
-    ESP_ERROR_CHECK(esp_lcd_panel_mirror(panel_handle, true, false));
+    ESP_ERROR_CHECK(esp_lcd_panel_reset(lcd_panel));
+    ESP_ERROR_CHECK(esp_lcd_panel_init(lcd_panel));
+    ESP_ERROR_CHECK(esp_lcd_panel_mirror(lcd_panel, true, false));
+    ESP_ERROR_CHECK(esp_lcd_panel_disp_on_off(lcd_panel, true));
 
-    // user can flush pre-defined pattern to the screen before we turn on the screen or backlight
-    ESP_ERROR_CHECK(esp_lcd_panel_disp_on_off(panel_handle, true));
-
-    ESP_LOGI(TAG_LCD, "Turn on LCD backlight");
+    ESP_LOGI(TAG, "Turn on LCD backlight");
     // gpio_set_level(PIN_NUM_BK_LIGHT, LCD_BK_LIGHT_ON_LEVEL);
     
     Backlight_Init();    
     // TOUCH_Init();
+
+    return ESP_OK;
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -77,7 +62,7 @@ uint8_t LCD_Backlight = 70;
 static ledc_channel_config_t ledc_channel;
 void Backlight_Init(void)
 {
-    ESP_LOGI(TAG_LCD, "Turn off LCD backlight");
+    ESP_LOGI(TAG, "Turn off LCD backlight");
     gpio_config_t bk_gpio_config = {
         .mode = GPIO_MODE_OUTPUT,
         .pin_bit_mask = 1ULL << PIN_NUM_BK_LIGHT

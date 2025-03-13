@@ -24,7 +24,7 @@
 #include "user_settings.h"
 
 #include "esp_log.h"
-// #include "esp_lvgl_port.h"
+#include "esp_lvgl_port.h"
 
 static const char *STROBE = "STROBE";
 

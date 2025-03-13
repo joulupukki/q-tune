@@ -95,7 +95,7 @@ void tuner_state_did_change_cb(TunerState old_state, TunerState new_state) {
         }
         break;
     case tunerStateTuning:
-        // vTaskResume(detectorTaskHandle);
+        vTaskResume(detectorTaskHandle);
         break;
     case tunerStateBooting:
         break;
@@ -184,13 +184,13 @@ extern "C" void app_main() {
     );
 
     // Start the Pitch Reading & Detection Task
-    // xTaskCreatePinnedToCore(
-    //     pitch_detector_task,    // callback function
-    //     "pitch_detector",       // debug name of the task
-    //     4096,                   // stack depth (no idea what this should be)
-    //     NULL,                   // params to pass to the callback function
-    //     10,                     // This has to be higher than the tuner_gui task or frequency readings aren't as accurate
-    //     &detectorTaskHandle,    // handle to the created task - we don't need it
-    //     1                       // Core ID
-    // );
+    xTaskCreatePinnedToCore(
+        pitch_detector_task,    // callback function
+        "pitch_detector",       // debug name of the task
+        4096,                   // stack depth (no idea what this should be)
+        NULL,                   // params to pass to the callback function
+        10,                     // This has to be higher than the tuner_gui task or frequency readings aren't as accurate
+        &detectorTaskHandle,    // handle to the created task - we don't need it
+        1                       // Core ID
+    );
 }

@@ -57,4 +57,4 @@ extern uint8_t LCD_Backlight;
 void Backlight_Init(void);                             // Initialize the LCD backlight, which has been called in the LCD_Init function, ignore it                                                         
 void Set_Backlight(uint8_t Light);                   // Call this function to adjust the brightness of the backlight. The value of the parameter Light ranges from 0 to 100
 
-void LCD_Init(void);                     // Call this function to initialize the screen (must be called in the main function) !!!!!
+esp_err_t LCD_Init(void);                     // Call this function to initialize the screen (must be called in the main function) !!!!!

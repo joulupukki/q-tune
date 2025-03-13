@@ -1,10 +1,16 @@
 #include "waveshare.h"
 
+#include "esp_lcd_touch.h"
+#include "esp_lvgl_port.h"
+
 static const char *TAG = "Waveshare";
 
 lv_display_t *lvgl_display = NULL;
-static void *buf1 = NULL;
-static void *buf2 = NULL;
+
+esp_lcd_panel_io_handle_t lcd_io = NULL;
+esp_lcd_panel_handle_t lcd_panel = NULL;
+esp_lcd_touch_handle_t tp = NULL;
+// lvgl_port_touch_cfg_t touch_cfg = NULL;
 
 void lvgl_flush_cb(lv_display_t *display, const lv_area_t *area, uint8_t *px_map);
 

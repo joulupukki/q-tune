@@ -23,7 +23,7 @@
 #include "globals.h"
 #include "user_settings.h"
 
-// #include "esp_lvgl_port.h"
+#include "esp_lvgl_port.h"
 
 #define NEEDLE_PITCH_INDICATOR_BAR_WIDTH        8
 #define NEEDLE_RULER_HEIGHT                     50
