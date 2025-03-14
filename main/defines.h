@@ -20,6 +20,7 @@
 #define TUNER_GLOBAL_DEFINES
 
 #include "driver/gpio.h"
+#include "hal/adc_types.h"
 
 //
 // RTOS Queues
@@ -76,12 +77,18 @@
 //
 // Pitch Detector Related
 //
-#define TUNER_ADC_UNIT                    ADC_UNIT_1
-#define _TUNER_ADC_UNIT_STR(unit)         #unit
-#define TUNER_ADC_UNIT_STR(unit)          _TUNER_ADC_UNIT_STR(unit)
-#define TUNER_ADC_CONV_MODE               ADC_CONV_SINGLE_UNIT_1
-#define TUNER_ADC_ATTEN                   ADC_ATTEN_DB_12
-#define TUNER_ADC_BIT_WIDTH               12
+// #define TUNER_ADC_UNIT                  ADC_UNIT_1
+// #define TUNER_ADC_CHANNEL               ADC_CHANNEL_9 // GPIO10
+// #define TUNER_ADC_CONV_MODE             ADC_CONV_SINGLE_UNIT_1
+#define TUNER_ADC_UNIT                  ADC_UNIT_2
+#define TUNER_ADC_CHANNEL               ADC_CHANNEL_4 // GPIO15
+// #define TUNER_ADC_CHANNEL               ADC_CHANNEL_7 // GPIO18
+#define TUNER_ADC_CONV_MODE             ADC_CONV_SINGLE_UNIT_2
+#define _TUNER_ADC_UNIT_STR(unit)       #unit
+#define TUNER_ADC_UNIT_STR(unit)        _TUNER_ADC_UNIT_STR(unit)
+#define TUNER_ADC_ATTEN                 ADC_ATTEN_DB_12
+#define TUNER_ADC_BIT_WIDTH             12
+#define TUNER_ACD_FILTER_COEFF          ADC_DIGI_IIR_FILTER_COEFF_64
 
 // #if CONFIG_IDF_TARGET_ESP32 || CONFIG_IDF_TARGET_ESP32S2
 // #define TUNER_ADC_OUTPUT_TYPE             ADC_DIGI_OUTPUT_FORMAT_TYPE1
@@ -103,12 +110,25 @@
 // #define TUNER_ADC_BUFFER_POOL_SIZE      (TUNER_ADC_FRAME_SIZE * 4)
 // #define TUNER_ADC_SAMPLE_RATE           (5 * 1000) // 5kHz 
 
+// EBD2 @ 5kHz
+#define TUNER_ADC_FRAME_SIZE            (SOC_ADC_DIGI_DATA_BYTES_PER_CONV * 64)
+#define TUNER_ADC_BUFFER_POOL_SIZE      (TUNER_ADC_FRAME_SIZE * 4)
+#define TUNER_ADC_SAMPLE_RATE           (5 * 1000) // 5kHz
+
+/*
+    ADC_DIGI_IIR_FILTER_COEFF_2,     ///< The filter coefficient is 2
+    ADC_DIGI_IIR_FILTER_COEFF_4,     ///< The filter coefficient is 4
+    ADC_DIGI_IIR_FILTER_COEFF_8,     ///< The filter coefficient is 8
+    ADC_DIGI_IIR_FILTER_COEFF_16,    ///< The filter coefficient is 16
+    ADC_DIGI_IIR_FILTER_COEFF_64,    ///< The filter coefficient is 64
+*/
+
 // EBD2 @ 3.3kHz with ADS1015 (External ADC)
-#define TUNER_ADC_SAMPLE_RATE               (3.3 * 1000) // 3.3kHz 
-#define TUNER_ADC_BUFFER_SIZE               300
-#define TUNER_ADC_NUM_OF_BUFFERS            6
-#define TUNER_ADC_ALERT_PIN                 GPIO_NUM_18
-#define TUNER_ADC_SAMPLE_INTERVAL           (1000000 / TUNER_ADC_SAMPLE_RATE) // microseconds to read one sample
+// #define TUNER_ADC_SAMPLE_RATE               (3.3 * 1000) // 3.3kHz 
+// #define TUNER_ADC_BUFFER_SIZE               300
+// #define TUNER_ADC_NUM_OF_BUFFERS            6
+// #define TUNER_ADC_ALERT_PIN                 GPIO_NUM_18
+// #define TUNER_ADC_SAMPLE_INTERVAL           (1000000 / TUNER_ADC_SAMPLE_RATE) // microseconds to read one sample
 
 /// @brief This factor is used to correct the incoming frequency readings on ESP32-WROOM-32 (which CYD is). This same weird behavior does not happen on ESP32-S2 or ESP32-S3.
 // #define WEIRD_ESP32_WROOM_32_FREQ_FIX_FACTOR    1.2222222223 // 11/9 but using 11/9 gives completely incorrect results. Weird.
@@ -130,7 +150,7 @@
 // OLED and only attempt to read frequency information when an
 // actual input signal is being read.
 // #define TUNER_READING_DIFF_MINIMUM      80 // approximately 80mV
-#define TUNER_READING_DIFF_MINIMUM      50 //
+#define TUNER_READING_DIFF_MINIMUM      130 // approximately 80mV
 
 //
 // Smoothing

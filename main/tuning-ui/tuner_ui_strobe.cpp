@@ -137,7 +137,7 @@ void strobe_gui_display_frequency(float frequency, TunerNoteName note_name, floa
             lv_obj_clear_flag(strobe_arc_container, LV_OBJ_FLAG_HIDDEN);
         }
 
-        strobe_amount_to_rotate = cents * 0.5; // Dividing the cents in half for the amount of rotation seems to feel about right
+        strobe_amount_to_rotate = cents * 0.25; // Dividing the cents in half for the amount of rotation seems to feel about right
     } else {
         strobe_amount_to_rotate = 0.0;
         // Hide the pitch and indicators since it's not detected
@@ -223,7 +223,7 @@ void strobe_create_labels(lv_obj_t * parent) {
     lv_label_set_text_static(strobe_frequency_label, "-");
     lv_obj_set_width(strobe_frequency_label, screen_width);
     lv_obj_set_style_text_align(strobe_frequency_label, LV_TEXT_ALIGN_RIGHT, 0);
-    lv_obj_align(strobe_frequency_label, LV_ALIGN_BOTTOM_RIGHT, 0, 0);
+    lv_obj_align(strobe_frequency_label, LV_ALIGN_BOTTOM_RIGHT, -2, -2);
 
     lv_style_init(&strobe_frequency_label_style);
     lv_style_set_text_font(&strobe_frequency_label_style, &lv_font_montserrat_18);
@@ -239,7 +239,7 @@ void strobe_create_labels(lv_obj_t * parent) {
 
     lv_obj_set_width(strobe_cents_label, screen_width / 2);
     lv_obj_set_style_text_align(strobe_cents_label, LV_TEXT_ALIGN_CENTER, 0);
-    lv_obj_align(strobe_cents_label, LV_ALIGN_BOTTOM_MID, 0, 0);
+    lv_obj_align(strobe_cents_label, LV_ALIGN_BOTTOM_LEFT, 2, -2);
     lv_obj_add_flag(strobe_cents_label, LV_OBJ_FLAG_HIDDEN);
 }
 

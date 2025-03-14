@@ -70,8 +70,10 @@ void Backlight_Init(void)
     ESP_ERROR_CHECK(gpio_config(&bk_gpio_config));
 
     ledc_timer_config_t ledc_timer = {
-        .duty_resolution = LEDC_TIMER_13_BIT,
-        .freq_hz = 5000,
+        // .duty_resolution = LEDC_TIMER_13_BIT, // Waveshare original
+        .duty_resolution = LEDC_TIMER_10_BIT, // Lower to allow a faster freq_hz
+        // .freq_hz = 5000, // Waveshare original
+        .freq_hz = 30000, // Required to get the noise out of the human hearing range
         .speed_mode = LEDC_LS_MODE,
         .timer_num = LEDC_HS_TIMER,
         .clk_cfg = LEDC_AUTO_CLK
