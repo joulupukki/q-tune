@@ -44,12 +44,10 @@ esp_err_t lcd_display_brightness_set(uint8_t brightness) {
   }
   
 esp_err_t lcd_display_rotate(lv_display_t * lvgl_disp, lv_display_rotation_t dir) {
-    ESP_LOGI(TAG, "TODO: Implement lcd_display_rotate()");
-    return ESP_OK;
-    // if (lvgl_disp) {
-    //     lv_display_set_rotation(lvgl_disp, dir);
-    //     return ESP_OK;
-    // }
+    if (lvgl_disp) {
+        lv_display_set_rotation(lvgl_disp, dir);
+        return ESP_OK;
+    }
 
-    // return ESP_FAIL;
+    return ESP_FAIL;
 }

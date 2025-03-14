@@ -195,6 +195,13 @@ void tuner_gui_task(void *pvParameter) {
 
     ESP_ERROR_CHECK(waveshare_lcd_init());
     ESP_ERROR_CHECK(waveshare_lvgl_init());
+
+    // Make sure the user's preferred rotation is set up before we draw the screen.
+    if (lvgl_port_lock(0)) {
+        ESP_ERROR_CHECK(lcd_display_rotate(lvgl_display, userSettings->getDisplayOrientation()));
+        lvgl_port_unlock();
+    }
+
     ESP_ERROR_CHECK(app_lvgl_main());
     
     // lvgl_port_lock(0);
