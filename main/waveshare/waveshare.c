@@ -2,6 +2,7 @@
 
 #include "esp_lcd_touch.h"
 #include "esp_lvgl_port.h"
+#include "ST7789.h"
 
 static const char *TAG = "Waveshare";
 
@@ -33,16 +34,13 @@ esp_err_t waveshare_lvgl_init() {
 }
 
 esp_err_t lcd_display_brightness_set(uint8_t brightness) {
-    ESP_LOGI(TAG, "TODO: Implement lcd_display_brightness_set()");
-    return ESP_OK;
-    // if (brightness > Backlight_MAX || brightness < 0) {
-    //   ESP_LOGI(TAG, "Set Backlight parameters in the range of 0 to 100 ");
-    // } else {
-    //   ESP_ERROR_CHECK(ledc_set_duty(LEDC_MODE, LEDC_CHANNEL, brightness*(1024/100)));    // Set duty
-    //   ESP_ERROR_CHECK(ledc_update_duty(LEDC_MODE, LEDC_CHANNEL));                 // Update duty to apply the new value
-    // }
+    if (brightness > Backlight_MAX || brightness < 0) {
+      ESP_LOGI(TAG, "Set Backlight parameters in the range of 0 to 100 ");
+      return ESP_FAIL;
+    }
+    Set_Backlight(brightness);
   
-    // return ESP_OK;
+    return ESP_OK;
   }
   
 esp_err_t lcd_display_rotate(lv_display_t * lvgl_disp, lv_display_rotation_t dir) {

@@ -93,10 +93,8 @@ void Backlight_Init(void)
 void Set_Backlight(uint8_t Light)
 {   
     if(Light > Backlight_MAX) Light = Backlight_MAX;
-    uint16_t Duty = LEDC_MAX_Duty-(81*(Backlight_MAX-Light));
-    if(Light == 0) 
-        Duty = 0;
-    ledc_set_duty(ledc_channel.speed_mode, ledc_channel.channel, Duty);
+    uint32_t duty = Light * (1024 / 100);
+    ledc_set_duty(ledc_channel.speed_mode, ledc_channel.channel, duty);
     ledc_update_duty(ledc_channel.speed_mode, ledc_channel.channel);
 }
 // end Backlight program
