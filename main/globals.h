@@ -76,37 +76,4 @@ inline const char *name_for_note(TunerNoteName note) {
     }
 }
 
-inline const char *name_for_note(TunerNoteName note) { 
-    switch (note) {
-        case NOTE_C:
-            return "C";
-        case NOTE_C_SHARP:
-            return "C#";
-        case NOTE_D:
-            return "D";
-        case NOTE_D_SHARP:
-            return "D#";
-        case NOTE_E:
-            return "E";
-        case NOTE_F:
-            return "F";
-        case NOTE_F_SHARP:
-            return "F#";
-        case NOTE_G:
-            return "G";
-        case NOTE_G_SHARP:
-            return "G#";
-        case NOTE_A:
-            return "A";
-        case NOTE_A_SHARP:
-            return "A#";
-        case NOTE_B:
-            return "B";
-        case NOTE_NONE:
-            return "-";
-        default:
-            return "Unknown";
-    }
-}
-
 #endif
