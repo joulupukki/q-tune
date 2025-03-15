@@ -1,12 +1,11 @@
 # Q-Tune Chromatic Tuner
 This is an in-progress project with the goal of creating a fully open-source chromatic tuner in a standard pedal enclosure for use on pedalboards and based on the ESP32 MCU.
 
-The project uses the Q DSP Library for frequency detection and LVGL for the
-graphical user interface.
+The project uses the Q DSP Library for frequency detection and LVGL 9 for the graphical user interface.
 
-The ESP32 board is a ESP32-2432S028R (ESP32-WROOM-32: https://www.espressif.com/sites/default/files/documentation/esp32-wroom-32_datasheet_en.pdf), more commonly known as ESP32 CYD (Cheap Yellow Display). For more information, take a look at this GitHub repo: https://github.com/witnessmenow/ESP32-Cheap-Yellow-Display
+The project now uses a [Waveshare ESP32-S3 Touch 2.8" 240x320](https://www.waveshare.com/product/mcu-tools/development-boards/esp32/esp32-s3-touch-lcd-2.8.htm?sku=27690) screen because of its clean cover glass that's already attached. It helps make a very professional look in a guitar pedal. Currently the capacitive touch isn't being used.
 
-If you are interested in building this tuner, be aware that there are a few variants of the ESP32 CYD available. Make sure you purchase one that only has one USB port, a single Micro USB.
+The project first used a Heltec ESP32-S3 with a smaller display, graduated to the Cheap Yellow Display (ESP32-2432S028R/ESP32-WROOM-32), and is now using the Waveshare.
 
 ## Setup
 
@@ -23,10 +22,10 @@ If you are interested in building this tuner, be aware that there are a few vari
     git submodule update --init --recursive
     ```
 7. Open the `q-tune` folder in VS Code
-8. Set your ESP32 target (esp32)
+8. Set your ESP32 target (esp32s3)
     - Open the Command Palette (Command+Shift+P on a Mac) and select `ESP-IDF: Set Espressif Device Target`
-    - Select `esp32`
-    - Select the `ESP32 chip (via ESP-PROG)` option
+    - Select `esp32s3`
+    - Select the `ESP32-S3 chip (via ESP-PROG)` option
 9. Select the port to use
     - Plug in your ESP32 dev board and wait for a few seconds
     - Open the Command Palette (Command+Shift+P on a Mac) and select `ESP-IDF: Select Port to Use (COM, tty, usbserial)`
