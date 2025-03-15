@@ -1,42 +1,4 @@
 dependencies:
-  atanisoft/esp_lcd_touch_xpt2046:
-    component_hash: 94c1d199922bc7468b5e14912ab0eb053a4a5a25680ce8a4ca2f4f18febbb01a
-    dependencies:
-    - name: idf
-      require: private
-      version: '>=4.4'
-    - name: espressif/esp_lcd_touch
-      registry_url: https://components.espressif.com
-      require: private
-      version: '>=1.0.4'
-    source:
-      registry_url: https://components.espressif.com/
-      type: service
-    version: 1.0.5
-  espressif/cmake_utilities:
-    component_hash: 351350613ceafba240b761b4ea991e0f231ac7a9f59a9ee901f751bddc0bb18f
-    dependencies:
-    - name: idf
-      require: private
-      version: '>=4.1'
-    source:
-      registry_url: https://components.espressif.com
-      type: service
-    version: 0.5.3
-  espressif/esp_lcd_ili9341:
-    component_hash: c6b96c14fa22ab9b80251812f7dbd7dd1b255ccd68abb0cef97a276df711a4ec
-    dependencies:
-    - name: idf
-      require: private
-      version: '>=4.4'
-    - name: espressif/cmake_utilities
-      registry_url: https://components.espressif.com
-      require: private
-      version: 0.*
-    source:
-      registry_url: https://components.espressif.com/
-      type: service
-    version: 2.0.0
   espressif/esp_lcd_touch:
     component_hash: 779b4ba2464a3ae85681e4b860caa5fdc35801458c23f3039ee761bae7f442a4
     dependencies:
@@ -44,11 +6,11 @@ dependencies:
       require: private
       version: '>=4.4.2'
     source:
-      registry_url: https://components.espressif.com
+      registry_url: https://components.espressif.com/
       type: service
     version: 1.1.2
   espressif/esp_lvgl_port:
-    component_hash: 41806031d90c91d50512d6f335f73978a1dd1aa1100ef5db40e189610be991ac
+    component_hash: bb938deffba7d80b2ce582a796c053681b0439e0a7033666688e0f1f5b921125
     dependencies:
     - name: idf
       require: private
@@ -60,7 +22,7 @@ dependencies:
     source:
       registry_url: https://components.espressif.com/
       type: service
-    version: 2.4.3
+    version: 2.5.0
   idf:
     source:
       type: idf
@@ -73,11 +35,10 @@ dependencies:
       type: service
     version: 9.2.2
 direct_dependencies:
-- atanisoft/esp_lcd_touch_xpt2046
-- espressif/esp_lcd_ili9341
+- espressif/esp_lcd_touch
 - espressif/esp_lvgl_port
 - idf
 - lvgl/lvgl
-manifest_hash: 3ca489dd319b8a9e6e6376794bbc553ed21c02c8404a892c6c62c1c5572c0b10
-target: esp32
+manifest_hash: bae383cc00694dc6dc03c40f87faa222f2f3301e880a1d3f24afb33ce9abfbcf
+target: esp32s3
 version: 2.0.0

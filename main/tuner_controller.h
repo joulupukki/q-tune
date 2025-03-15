@@ -20,6 +20,7 @@
 #define TUNER_STATE
 
 #include "freertos/FreeRTOS.h"
+#include "freertos/queue.h"
 
 enum TunerState: uint8_t {
     tunerStateBooting = 0,
@@ -48,9 +49,7 @@ typedef void (*tuner_footswitch_pressed_cb_t)(FootswitchPress press);
 
 class TunerController {
 
-    TunerState tunerState;
-
-    portMUX_TYPE tuner_state_mutex = portMUX_INITIALIZER_UNLOCKED;
+    QueueHandle_t tunerStateQueue;
 
     tuner_state_will_change_cb_t    stateWillChangeCallback;
     tuner_state_did_change_cb_t     stateDidChangeCallback;

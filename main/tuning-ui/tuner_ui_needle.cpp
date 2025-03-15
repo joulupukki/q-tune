@@ -25,7 +25,12 @@
 
 #include "esp_lvgl_port.h"
 
-#define PITCH_INDICATOR_BAR_WIDTH       8
+#define NEEDLE_PITCH_INDICATOR_BAR_WIDTH        8
+#define NEEDLE_RULER_HEIGHT                     50
+#define NEEDLE_RULER_CENTER_HEIGHT              40
+#define NEEDLE_RULER_TALL_HEIGHT                30
+#define NEEDLE_RULER_SHORT_HEIGH                20
+#define NEEDLE_NUM_LINES_PER_SIDE               14
 
 extern UserSettings *userSettings;
 extern lv_coord_t screen_width;
@@ -154,13 +159,13 @@ void needle_gui_cleanup() {
 }
 
 void needle_create_ruler(lv_obj_t * parent) {
-    const int ruler_height = 50;     // Total height of the ruler
-    const int ruler_line_width = 2;  // Width of each ruler line
+    const int ruler_height = NEEDLE_RULER_HEIGHT;     // Total height of the ruler
+    const int ruler_line_width = 4;  // Width of each ruler line
     const int spacer_width = (screen_width - (29 * ruler_line_width)) / 30;      // Width between items
-    const int center_height = 40;    // Height of the center line
-    const int tall_height = 30;      // Height of taller side lines
-    const int short_height = 20;     // Height of shorter side lines
-    const int num_lines_side = 14;   // Number of lines on each side of the center
+    const int center_height = NEEDLE_RULER_CENTER_HEIGHT;    // Height of the center line
+    const int tall_height = NEEDLE_RULER_TALL_HEIGHT;      // Height of taller side lines
+    const int short_height = NEEDLE_RULER_SHORT_HEIGH;     // Height of shorter side lines
+    const int num_lines_side = NEEDLE_NUM_LINES_PER_SIDE;   // Number of lines on each side of the center
 
     const int cents_container_height = ruler_height;
 
@@ -237,7 +242,7 @@ void needle_create_ruler(lv_obj_t * parent) {
     lv_obj_t * rect = lv_obj_create(ruler_container);
 
     // Set the rectangle's size and position
-    lv_obj_set_size(rect, PITCH_INDICATOR_BAR_WIDTH, center_height);
+    lv_obj_set_size(rect, NEEDLE_PITCH_INDICATOR_BAR_WIDTH, center_height);
     lv_obj_set_style_border_width(rect, 0, LV_PART_MAIN);
     lv_obj_align(rect, LV_ALIGN_CENTER, 0, 0);
 
@@ -271,11 +276,11 @@ void needle_create_labels(lv_obj_t * parent) {
 
     needle_note_img = lv_image_create(needle_note_img_container);
     lv_image_set_src(needle_note_img, &tuner_font_image_none);
-    lv_obj_align(needle_note_img, LV_ALIGN_CENTER, 0, 20); // Offset down by 20 pixels
+    lv_obj_align(needle_note_img, LV_ALIGN_CENTER, 0, 40); // Offset down by 40 pixels
 
     needle_sharp_img = lv_image_create(needle_note_img_container);
     lv_image_set_src(needle_sharp_img, &tuner_font_image_sharp);
-    lv_obj_align_to(needle_sharp_img, needle_note_img, LV_ALIGN_TOP_RIGHT, 20, -15);
+    lv_obj_align_to(needle_sharp_img, needle_note_img, LV_ALIGN_TOP_RIGHT, 40, -30);
     lv_obj_add_flag(needle_sharp_img, LV_OBJ_FLAG_HIDDEN);
     
     // Enable recoloring on the images

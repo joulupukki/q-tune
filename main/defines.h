@@ -19,16 +19,43 @@
 #if !defined(TUNER_GLOBAL_DEFINES)
 #define TUNER_GLOBAL_DEFINES
 
+#include "driver/gpio.h"
+#include "hal/adc_types.h"
+
+//
+// RTOS Queues
+//
+
+// The pitch detector task will always write the latest value of detection on
+// the queue. Use a length of 1 so we can use xQueueOverwrite and xQueuePeek so
+// the very latest frequency info is always available to anywhere.
+#define FREQUENCY_QUEUE_LENGTH 1
+#define FREQUENCY_QUEUE_ITEM_SIZE sizeof(float)
+
+#define TUNER_STATE_QUEUE_LENGTH 1
+#define TUNER_STATE_QUEUE_ITEM_SIZE sizeof(uint8_t)
+
 //
 // Foot Switch and Relay (GPIO)
 //
-// #define FOOT_SWITCH_GPIO                GPIO_NUM_0 // Use this to use the CYD's BOOT onboard switch
-#define FOOT_SWITCH_GPIO                GPIO_NUM_27
-#define RELAY_GPIO                      GPIO_NUM_22
+#define FOOT_SWITCH_GPIO                GPIO_NUM_44 // RXD on EBD2
+#define RELAY_GPIO                      GPIO_NUM_43 // TXD on EBD2
 
 #define LONG_PRESS_TIME_MS              1000 // milliseconds
 #define DOUBLE_PRESS_TIME_MS            250 // milliseconds
 #define DEBOUNCE_TIME_MS                50 // milliseconds
+
+//
+// LCD
+//
+#define LCD_H_RES                       240
+#define LCD_V_RES                       320
+#define LCD_BITS_PIXEL                  16
+#define LCD_BUF_LINES                   30
+#define LCD_DOUBLE_BUFFER               1
+#define LCD_DRAWBUF_SIZE                (LCD_H_RES * LCD_BUF_LINES)
+#define LCD_MIRROR_X                    (true)
+#define LCD_MIRROR_Y                    (false)
 
 //
 // Default User Settings
@@ -50,30 +77,59 @@
 //
 // Pitch Detector Related
 //
-#define TUNER_ADC_UNIT                    ADC_UNIT_1
-#define _TUNER_ADC_UNIT_STR(unit)         #unit
-#define TUNER_ADC_UNIT_STR(unit)          _TUNER_ADC_UNIT_STR(unit)
-#define TUNER_ADC_CONV_MODE               ADC_CONV_SINGLE_UNIT_1
-#define TUNER_ADC_ATTEN                   ADC_ATTEN_DB_12
-#define TUNER_ADC_BIT_WIDTH               12
+#define TUNER_ADC_UNIT                  ADC_UNIT_2
+#define TUNER_ADC_CHANNEL               ADC_CHANNEL_4 // GPIO15
+// #define TUNER_ADC_CHANNEL               ADC_CHANNEL_7 // GPIO18
+#define TUNER_ADC_CONV_MODE             ADC_CONV_SINGLE_UNIT_2
+#define _TUNER_ADC_UNIT_STR(unit)       #unit
+#define TUNER_ADC_UNIT_STR(unit)        _TUNER_ADC_UNIT_STR(unit)
+#define TUNER_ADC_ATTEN                 ADC_ATTEN_DB_12
+#define TUNER_ADC_BIT_WIDTH             12
+#define TUNER_ACD_FILTER_COEFF          ADC_DIGI_IIR_FILTER_COEFF_64
 
 // #if CONFIG_IDF_TARGET_ESP32 || CONFIG_IDF_TARGET_ESP32S2
-#define TUNER_ADC_OUTPUT_TYPE             ADC_DIGI_OUTPUT_FORMAT_TYPE1
-#define TUNER_ADC_GET_CHANNEL(p_data)     ((p_data)->type1.channel)
-#define TUNER_ADC_GET_DATA(p_data)        ((p_data)->type1.data)
+// #define TUNER_ADC_OUTPUT_TYPE             ADC_DIGI_OUTPUT_FORMAT_TYPE1
+// #define TUNER_ADC_GET_CHANNEL(p_data)     ((p_data)->type1.channel)
+// #define TUNER_ADC_GET_DATA(p_data)        ((p_data)->type1.data)
 // #else
-// #define TUNER_ADC_OUTPUT_TYPE             ADC_DIGI_OUTPUT_FORMAT_TYPE2
-// #define TUNER_ADC_GET_CHANNEL(p_data)     ((p_data)->type2.channel)
-// #define TUNER_ADC_GET_DATA(p_data)        ((p_data)->type2.data)
+#define TUNER_ADC_OUTPUT_TYPE             ADC_DIGI_OUTPUT_FORMAT_TYPE2
+#define TUNER_ADC_GET_CHANNEL(p_data)     ((p_data)->type2.channel)
+#define TUNER_ADC_GET_DATA(p_data)        ((p_data)->type2.data)
 // #endif
 
 // CYD @ 48kHz
-#define TUNER_ADC_FRAME_SIZE            1024
-#define TUNER_ADC_BUFFER_POOL_SIZE      4096
-#define TUNER_ADC_SAMPLE_RATE           (48 * 1000) // 48kHz
+// #define TUNER_ADC_FRAME_SIZE            1024
+// #define TUNER_ADC_BUFFER_POOL_SIZE      4096
+// #define TUNER_ADC_SAMPLE_RATE           (48 * 1000) // 48kHz
+
+// EBD4 @ 5kHz
+// #define TUNER_ADC_FRAME_SIZE            (SOC_ADC_DIGI_DATA_BYTES_PER_CONV * 64)
+// #define TUNER_ADC_BUFFER_POOL_SIZE      (TUNER_ADC_FRAME_SIZE * 4)
+// #define TUNER_ADC_SAMPLE_RATE           (5 * 1000) // 5kHz 
+
+// EBD2 @ 5kHz
+#define TUNER_ADC_FRAME_SIZE            (SOC_ADC_DIGI_DATA_BYTES_PER_CONV * 64)
+#define TUNER_ADC_BUFFER_POOL_SIZE      (TUNER_ADC_FRAME_SIZE * 4)
+#define TUNER_ADC_SAMPLE_RATE           (5 * 1000) // 5kHz
+
+/*
+    ADC_DIGI_IIR_FILTER_COEFF_2,     ///< The filter coefficient is 2
+    ADC_DIGI_IIR_FILTER_COEFF_4,     ///< The filter coefficient is 4
+    ADC_DIGI_IIR_FILTER_COEFF_8,     ///< The filter coefficient is 8
+    ADC_DIGI_IIR_FILTER_COEFF_16,    ///< The filter coefficient is 16
+    ADC_DIGI_IIR_FILTER_COEFF_64,    ///< The filter coefficient is 64
+*/
+
+// EBD2 @ 3.3kHz with ADS1015 (External ADC)
+// #define TUNER_ADC_SAMPLE_RATE               (3.3 * 1000) // 3.3kHz 
+// #define TUNER_ADC_BUFFER_SIZE               300
+// #define TUNER_ADC_NUM_OF_BUFFERS            6
+// #define TUNER_ADC_ALERT_PIN                 GPIO_NUM_18
+// #define TUNER_ADC_SAMPLE_INTERVAL           (1000000 / TUNER_ADC_SAMPLE_RATE) // microseconds to read one sample
 
 /// @brief This factor is used to correct the incoming frequency readings on ESP32-WROOM-32 (which CYD is). This same weird behavior does not happen on ESP32-S2 or ESP32-S3.
-#define WEIRD_ESP32_WROOM_32_FREQ_FIX_FACTOR    1.2222222223 // 11/9 but using 11/9 gives completely incorrect results. Weird.
+// #define WEIRD_ESP32_WROOM_32_FREQ_FIX_FACTOR    1.2222222223 // 11/9 but using 11/9 gives completely incorrect results. Weird.
+#define WEIRD_ESP32_WROOM_32_FREQ_FIX_FACTOR    1 // ESP32-S3 does not need this correction.
 
 // HELTEC @ 20kHz
 // #define TUNER_ADC_FRAME_SIZE            (SOC_ADC_DIGI_DATA_BYTES_PER_CONV * 256)
@@ -90,7 +146,8 @@
 // the frequency. This should help cut down on the noise from the
 // OLED and only attempt to read frequency information when an
 // actual input signal is being read.
-#define TUNER_READING_DIFF_MINIMUM      120 // approximately 120mV
+// #define TUNER_READING_DIFF_MINIMUM      80 // approximately 80mV
+#define TUNER_READING_DIFF_MINIMUM      130 // approximately 80mV
 
 //
 // Smoothing

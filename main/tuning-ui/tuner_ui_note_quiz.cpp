@@ -48,12 +48,22 @@ LV_IMG_DECLARE(tuner_font_image_g)
 LV_IMG_DECLARE(tuner_font_image_none)
 LV_IMG_DECLARE(tuner_font_image_sharp)
 
+LV_IMG_DECLARE(tuner_font_image_a2x)
+LV_IMG_DECLARE(tuner_font_image_b2x)
+LV_IMG_DECLARE(tuner_font_image_c2x)
+LV_IMG_DECLARE(tuner_font_image_d2x)
+LV_IMG_DECLARE(tuner_font_image_e2x)
+LV_IMG_DECLARE(tuner_font_image_f2x)
+LV_IMG_DECLARE(tuner_font_image_g2x)
+LV_IMG_DECLARE(tuner_font_image_none2x)
+LV_IMG_DECLARE(tuner_font_image_sharp2x)
+
 //
 // Function Definitions
 //
 TunerNoteName get_random_note();
 void quiz_create_labels(lv_obj_t * parent);;
-void quiz_update_note_name(lv_obj_t *img, lv_obj_t *sharp_img, TunerNoteName new_value);
+void quiz_update_note_name(lv_obj_t *img, lv_obj_t *sharp_img, TunerNoteName new_value, bool use_2x);
 void quiz_set_new_target_note();
 
 // void quiz_start_note_fade_animation();
@@ -114,6 +124,7 @@ const char * quiz_gui_get_name() {
 }
 
 void quiz_gui_init(lv_obj_t *screen) {
+    ESP_LOGI(TAG, "Initializing the note quiz tuner UI");
     quiz_parent_screen = screen;
     quiz_create_labels(screen);
 
@@ -129,6 +140,9 @@ void quiz_gui_init(lv_obj_t *screen) {
         quiz_user_note_color = lv_palette_main(quiz_user_note_palette);
     }
     quiz_slider_out_color = lv_palette_main(LV_PALETTE_GREY);
+
+    lv_obj_set_style_img_recolor(quiz_note_img, quiz_user_note_color, 0);
+    lv_obj_set_style_img_recolor(quiz_sharp_img, quiz_user_note_color, 0);
 }
 
 void quiz_gui_display_frequency(float frequency, TunerNoteName note_name, float cents, bool show_mute_indicator) {
@@ -195,9 +209,6 @@ void quiz_gui_display_frequency(float frequency, TunerNoteName note_name, float 
     } else {
         lv_obj_add_flag(quiz_mute_label, LV_OBJ_FLAG_HIDDEN);
     }
-
-    lv_obj_set_style_img_recolor(quiz_note_img, quiz_user_note_color, 0);
-    lv_obj_set_style_img_recolor(quiz_sharp_img, quiz_user_note_color, 0);
 }
 
 void quiz_gui_cleanup() {
@@ -233,7 +244,7 @@ void quiz_create_labels(lv_obj_t * parent) {
 
     quiz_sharp_img = lv_image_create(quiz_note_img_container);
     lv_image_set_src(quiz_sharp_img, &tuner_font_image_sharp);
-    lv_obj_align_to(quiz_sharp_img, quiz_note_img, LV_ALIGN_TOP_RIGHT, 20, -15);
+    lv_obj_align_to(quiz_sharp_img, quiz_note_img, LV_ALIGN_TOP_RIGHT, 40, -30);
     lv_obj_add_flag(quiz_sharp_img, LV_OBJ_FLAG_HIDDEN);
     
     // Enable recoloring on the images
@@ -348,7 +359,7 @@ void quiz_create_labels(lv_obj_t * parent) {
     lv_obj_align(quiz_slider_right, LV_ALIGN_LEFT_MID, 0, 0);
 }
 
-void quiz_update_note_name(lv_obj_t *img, lv_obj_t *sharp_img, TunerNoteName new_value) {
+void quiz_update_note_name(lv_obj_t *img, lv_obj_t *sharp_img, TunerNoteName new_value, bool use_2x) {
     // Set the note name with a timer so it doesn't get
     // set too often for LVGL. ADC makes it run SUPER
     // fast and can crash the software.
@@ -359,37 +370,37 @@ void quiz_update_note_name(lv_obj_t *img, lv_obj_t *sharp_img, TunerNoteName new
     case NOTE_A_SHARP:
         show_sharp_symbol = true;
     case NOTE_A:
-        img_desc = &tuner_font_image_a;
+        img_desc = use_2x ? &tuner_font_image_a2x : &tuner_font_image_a;
         break;
     case NOTE_B:
-        img_desc = &tuner_font_image_b;
+        img_desc = use_2x ? &tuner_font_image_b2x : &tuner_font_image_b;
         break;
     case NOTE_C_SHARP:
         show_sharp_symbol = true;
     case NOTE_C:
-        img_desc = &tuner_font_image_c;
+        img_desc = use_2x ? &tuner_font_image_c2x : &tuner_font_image_c;
         break;
     case NOTE_D_SHARP:
         show_sharp_symbol = true;
     case NOTE_D:
-        img_desc = &tuner_font_image_d;
+        img_desc = use_2x ? &tuner_font_image_d2x : &tuner_font_image_d;
         break;
     case NOTE_E:
-        img_desc = &tuner_font_image_e;
+        img_desc = use_2x ? &tuner_font_image_e2x : &tuner_font_image_e;
         break;
     case NOTE_F_SHARP:
         show_sharp_symbol = true;
     case NOTE_F:
-        img_desc = &tuner_font_image_f;
+        img_desc = use_2x ? &tuner_font_image_f2x : &tuner_font_image_f;
         break;
     case NOTE_G_SHARP:
         show_sharp_symbol = true;
     case NOTE_G:
-        img_desc = &tuner_font_image_g;
+        img_desc = use_2x ? &tuner_font_image_g2x : &tuner_font_image_g;
         break;
     case NOTE_NONE:
         // show_note_fade_anim = true;
-        img_desc = &tuner_font_image_none;
+        img_desc = use_2x ? &tuner_font_image_none2x : &tuner_font_image_none;
         break;
     default:
         return;
@@ -418,8 +429,8 @@ void quiz_set_new_target_note() {
     }
     quiz_upcoming_note = get_random_note();
 
-    quiz_update_note_name(quiz_note_img, quiz_sharp_img, quiz_current_target_note);
-    quiz_update_note_name(quiz_next_note_img, quiz_next_sharp_img, quiz_upcoming_note);
+    quiz_update_note_name(quiz_note_img, quiz_sharp_img, quiz_current_target_note, false);
+    quiz_update_note_name(quiz_next_note_img, quiz_next_sharp_img, quiz_upcoming_note, false);
 }
 
 // void quiz_start_note_fade_animation() {

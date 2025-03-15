@@ -17,6 +17,7 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 #include "tuner_controller.h"
+#include "defines.h"
 
 #include "esp_log.h"
 
@@ -25,26 +26,27 @@ static const char *TAG = "CONTROLLER";
 TunerController::TunerController(tuner_state_will_change_cb_t willChange,
                 tuner_state_did_change_cb_t didChange,
                 tuner_footswitch_pressed_cb_t footswitchPressed) {
-    tunerState = tunerStateBooting;
     stateWillChangeCallback = willChange;
     stateDidChangeCallback = didChange;
     footswitchPressedCallback = footswitchPressed;
+
+    TunerState initialState = tunerStateBooting;
+    tunerStateQueue = xQueueCreate(TUNER_STATE_QUEUE_LENGTH, TUNER_STATE_QUEUE_ITEM_SIZE);
+    xQueueOverwrite(tunerStateQueue, &initialState);
 }
 
 TunerState TunerController::getState() {
-    TunerState state = tunerStateStandby;
-    portENTER_CRITICAL(&tuner_state_mutex);
-    state = tunerState;
-    portEXIT_CRITICAL(&tuner_state_mutex);
+    TunerState state;
+    if (!xQueuePeek(tunerStateQueue, &state, 0)) {
+        state = tunerStateStandby;
+    }
     return state;
 }
 
 void TunerController::setState(TunerState new_state) {
     TunerState old_state = getState();
     stateWillChangeCallback(old_state, new_state);
-    portENTER_CRITICAL(&tuner_state_mutex);
-    tunerState = new_state;
-    portEXIT_CRITICAL(&tuner_state_mutex);
+    xQueueOverwrite(tunerStateQueue, &new_state);
     stateDidChangeCallback(old_state, new_state);
 }
 
