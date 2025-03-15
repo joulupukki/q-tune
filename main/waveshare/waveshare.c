@@ -1,6 +1,7 @@
 #include "waveshare.h"
 
-#include "esp_lcd_touch.h"
+// #include "esp_lcd_touch/esp_lcd_touch.h"
+#include <esp_lcd_touch.h>
 #include "esp_lvgl_port.h"
 #include "ST7789.h"
 
@@ -11,7 +12,7 @@ lv_display_t *lvgl_display = NULL;
 esp_lcd_panel_io_handle_t lcd_io = NULL;
 esp_lcd_panel_handle_t lcd_panel = NULL;
 esp_lcd_touch_handle_t tp = NULL;
-// lvgl_port_touch_cfg_t touch_cfg = NULL;
+lv_indev_t *touch_device = NULL;
 
 void lvgl_flush_cb(lv_display_t *display, const lv_area_t *area, uint8_t *px_map);
 
@@ -24,13 +25,18 @@ esp_err_t waveshare_lcd_init() {
 esp_err_t waveshare_lvgl_init() {
     LVGL_Init();
 
-    //     ESP_ERROR_CHECK(lcd_display_brightness_set(userSettings->displayBrightness * 10 + 10)); // Adjust for 0 - 10%, 1 - 20%, etc.
-    //     ESP_ERROR_CHECK(lcd_display_rotate(lvgl_display, userSettings->getDisplayOrientation()));
-    //     // ESP_ERROR_CHECK(lcd_display_rotate(lvgl_display, LV_DISPLAY_ROTATION_0)); // Upside Down
-    //     lvgl_port_unlock();
-    // }
-
     return ESP_OK;
+}
+
+esp_err_t waveshare_touch_init() {
+    TOUCH_Init();
+
+    lvgl_port_touch_cfg_t touch_cfg = {
+        .disp = lvgl_display,
+        .handle = tp
+    };
+    touch_device = lvgl_port_add_touch(&touch_cfg);
+    return touch_device == NULL ? ESP_FAIL : ESP_OK;
 }
 
 esp_err_t lcd_display_brightness_set(uint8_t brightness) {

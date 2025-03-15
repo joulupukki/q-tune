@@ -1,6 +1,6 @@
 #pragma once
 
-#include "esp_lcd_touch/esp_lcd_touch.h"
+#include <esp_lcd_touch.h>
 #include "driver/i2c_master.h"
 
 #include "ST7789.h"

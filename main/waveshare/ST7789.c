@@ -50,7 +50,7 @@ esp_err_t LCD_Init(void)
     // gpio_set_level(PIN_NUM_BK_LIGHT, LCD_BK_LIGHT_ON_LEVEL);
     
     Backlight_Init();    
-    // TOUCH_Init();
+    TOUCH_Init();
 
     return ESP_OK;
 }

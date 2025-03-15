@@ -32,30 +32,6 @@ void lvgl_flush_cb(lv_display_t *display, const lv_area_t *area, uint8_t * px_ma
     // lv_display_flush_ready(lvgl_display);
 }
 
-/*Read the touchpad*/
-// void touchpad_read( lv_indev_drv_t * drv, lv_indev_data_t * data )
-// {
-//     uint16_t touchpad_x[5] = {0};
-//     uint16_t touchpad_y[5] = {0};
-//     uint8_t touchpad_cnt = 0;
-
-//     /* Read touch controller data */
-//     esp_lcd_touch_read_data(drv->user_data);
-
-//     /* Get coordinates */
-//     bool touchpad_pressed = esp_lcd_touch_get_coordinates(drv->user_data, touchpad_x, touchpad_y, NULL, &touchpad_cnt, 5);
-
-//     // printf("CCCCCCCCCCCCC=%d  \r\n",touchpad_cnt);
-//     if (touchpad_pressed && touchpad_cnt > 0) {
-//         data->point.x = touchpad_x[0];
-//         data->point.y = touchpad_y[0];
-//         data->state = LV_INDEV_STATE_PR;
-//         // printf("X=%u Y=%u num=%d \r\n", data->point.x, data->point.y,touchpad_cnt);
-//     } else {
-//         data->state = LV_INDEV_STATE_REL;
-//     }
-   
-// }
 // /* Rotate display and touch, when rotated screen in LVGL. Called when driver parameters are updated. */
 // void lvgl_port_update_callback(lv_disp_drv_t *drv)
 // {
@@ -125,4 +101,6 @@ void LVGL_Init(void)
     };
 
     lvgl_display = lvgl_port_add_disp(&disp_cfg);
+
+
 }

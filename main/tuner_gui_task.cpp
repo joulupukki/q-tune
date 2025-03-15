@@ -195,6 +195,7 @@ void tuner_gui_task(void *pvParameter) {
 
     ESP_ERROR_CHECK(waveshare_lcd_init());
     ESP_ERROR_CHECK(waveshare_lvgl_init());
+    // ESP_ERROR_CHECK(waveshare_touch_init()); // Don't use Touch for now
 
     // Make sure the user's preferred rotation is set up before we draw the screen.
     if (lvgl_port_lock(0)) {
@@ -340,7 +341,7 @@ void create_tuning_ui() {
     get_active_gui().init(main_screen);
 
     // Place the settings button on the UI (bottom left)
-    // create_settings_menu_button(main_screen);
+    create_settings_menu_button(main_screen);
 }
 
 void create_settings_ui() {
