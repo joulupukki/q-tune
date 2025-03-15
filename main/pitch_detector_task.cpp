@@ -26,6 +26,8 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/queue.h"
 #include "esp_adc/adc_continuous.h"
+// #include "esp_adc/adc_cali.h"
+// #include "esp_adc/adc_cali_scheme.h"
 #include "esp_adc/adc_filter.h"
 #include "esp_timer.h"
 
@@ -70,6 +72,8 @@ static adc_channel_t channel[1] = {TUNER_ADC_CHANNEL}; // ESP32-S3 EBD2 - GPIO 1
 static const double euFilterFreq = EU_FILTER_ESTIMATED_FREQ; // I believe this means no guess as to what the incoming frequency will initially be
 static const double mincutoff = EU_FILTER_MIN_CUTOFF;
 static const double dcutoff = EU_FILTER_DERIVATIVE_CUTOFF;
+
+// adc_cali_handle_t cali_handle = NULL;
 
 ExponentialSmoother smoother(DEFAULT_EXP_SMOOTHING);
 OneEuroFilter oneEUFilter(euFilterFreq, mincutoff, DEFAULT_ONE_EU_BETA, dcutoff);
@@ -131,6 +135,14 @@ static void continuous_adc_init(adc_channel_t *channel, uint8_t channel_count, a
 
     // dig_cfg.adc_pattern = adc_pattern;
     ESP_ERROR_CHECK(adc_continuous_config(handle, &dig_cfg));
+
+    // adc_cali_curve_fitting_config_t curve_cfg = {
+    //     .unit_id = TUNER_ADC_UNIT,
+    //     .chan = TUNER_ADC_CHANNEL,
+    //     .atten = TUNER_ADC_ATTEN,
+    //     .bitwidth = ADC_BITWIDTH_12,
+    // };
+    // ESP_ERROR_CHECK(adc_cali_create_scheme_curve_fitting(&curve_cfg, &cali_handle));
 
     adc_continuous_iir_filter_config_t iir_filter_cfg = {
         .unit = TUNER_ADC_UNIT,
@@ -237,8 +249,15 @@ void pitch_detector_task(void *pvParameter) {
                     //     ESP_LOGI(TAG, "read value is: %d", TUNER_ADC_GET_DATA(p));
                     // }
 
+                    int value = TUNER_ADC_GET_DATA(p);
+                    // int calibratedValue;
+                    // esp_err_t r = adc_cali_raw_to_voltage(cali_handle, value, &calibratedValue);
+                    // if (r == ESP_OK) {
+                    //     value = calibratedValue;
+                    // }
+
                     // Do a first pass by just storing the raw values into the float array
-                    in[valuesStored] = TUNER_ADC_GET_DATA(p);
+                    in[valuesStored] = value;
 
                     // Track the min and max values we see so we can convert to values between -1.0f and +1.0f
                     if (in[valuesStored] > maxVal) {
@@ -266,7 +285,6 @@ void pitch_detector_task(void *pvParameter) {
                     continue;
                 }
 
-                // ESP_LOGI(TAG, "Min: %f, Max: %f, peak-to-peak: %f", minVal, maxVal, range);
                 oneEUFilter.setBeta(userSettings->oneEUBeta);
                 smoother.setAmount(userSettings->expSmoothing);
 

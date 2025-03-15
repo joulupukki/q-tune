@@ -194,7 +194,7 @@ void strobe_create_labels(lv_obj_t * parent) {
 
     strobe_sharp_img = lv_image_create(strobe_note_img_container);
     lv_image_set_src(strobe_sharp_img, &tuner_font_image_sharp);
-    lv_obj_align_to(strobe_sharp_img, strobe_note_img, LV_ALIGN_TOP_RIGHT, 140, -90);
+    lv_obj_align_to(strobe_sharp_img, strobe_note_img, LV_ALIGN_TOP_RIGHT, 70, -45);
     lv_obj_add_flag(strobe_sharp_img, LV_OBJ_FLAG_HIDDEN);
     
     // Enable recoloring on the images

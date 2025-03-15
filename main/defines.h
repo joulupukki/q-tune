@@ -77,9 +77,6 @@
 //
 // Pitch Detector Related
 //
-// #define TUNER_ADC_UNIT                  ADC_UNIT_1
-// #define TUNER_ADC_CHANNEL               ADC_CHANNEL_9 // GPIO10
-// #define TUNER_ADC_CONV_MODE             ADC_CONV_SINGLE_UNIT_1
 #define TUNER_ADC_UNIT                  ADC_UNIT_2
 #define TUNER_ADC_CHANNEL               ADC_CHANNEL_4 // GPIO15
 // #define TUNER_ADC_CHANNEL               ADC_CHANNEL_7 // GPIO18
