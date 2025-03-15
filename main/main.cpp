@@ -18,6 +18,7 @@
  */
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
+#include "freertos/queue.h"
 #include "esp_adc/adc_continuous.h"
 #include "esp_timer.h"
 
@@ -26,6 +27,10 @@
 #include "user_settings.h"
 #include "tuner_controller.h"
 #include "tuner_gui_task.h"
+
+extern "C" { // because these files are C and not C++
+    #include "I2C_Driver.h"
+}
 
 extern void gpio_task(void *pvParameter);
 extern void tuner_gui_task(void *pvParameter);
@@ -36,6 +41,8 @@ UserSettings *userSettings;
 
 TaskHandle_t gpioTaskHandle;
 TaskHandle_t detectorTaskHandle;
+
+QueueHandle_t frequencyQueue;
 
 /* GPIO PINS
 
@@ -76,9 +83,6 @@ void tuner_state_did_change_cb(TunerState old_state, TunerState new_state) {
     case tunerStateBooting:
         break;
     }
-
-    // Tell the UI about the update so it can update.
-    tuner_gui_task_tuner_state_changed(old_state, new_state);
 }
 
 void footswitch_pressed_cb(FootswitchPress press) {
@@ -116,13 +120,23 @@ extern "C" void app_main() {
     userSettings = new UserSettings(user_settings_will_show_cb, user_settings_changed_cb, user_settings_will_exit_cb);
     user_settings_changed_cb(); // Calling this allows the pitch detector and tuner UI to initialize properly with current user
 
+    // I2C_Init();
+
     tunerController = new TunerController(tuner_state_will_change_cb, tuner_state_did_change_cb, footswitch_pressed_cb);
+
+    frequencyQueue = xQueueCreate(FREQUENCY_QUEUE_LENGTH, FREQUENCY_QUEUE_ITEM_SIZE);
+
+    if (frequencyQueue == NULL) {
+        ESP_LOGE(TAG, "Frequency Queue creation failed!");
+    } else {
+        ESP_LOGI(TAG, "Frequency Queue created successfully!");
+    }
 
     // // Start the GPIO Task
     xTaskCreatePinnedToCore(
         gpio_task,          // callback function
         "gpio",             // debug name of the task
-        2048,               // stack depth (no idea what this should be)
+        4096,               // stack depth (no idea what this should be)
         NULL,               // params to pass to the callback function
         0,                  // ux priority - higher value is higher priority
         &gpioTaskHandle,    // handle to the created task - we don't need it

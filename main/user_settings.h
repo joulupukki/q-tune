@@ -31,7 +31,8 @@
 #include "freertos/FreeRTOS.h"
 
 extern "C" { // because these files are C and not C++
-    #include "lcd.h"
+    // #include "lcd.h"
+    // #include "ST7701S.h"
 }
 
 #include "nvs_flash.h"
@@ -77,10 +78,6 @@ class UserSettings {
     /// @brief Loads settings from persistent storage.
     void loadSettings();
 
-    /// @brief Set whether the menu is showing (thread safe).
-    /// @param isShowing 
-    void setIsShowingSettings(bool isShowing);
-
     void advanceToNextButton();
     void pressFocusedButton();
 
@@ -111,11 +108,6 @@ public:
      * @brief Create the settings object and sets its parameters
      */
     UserSettings(settings_will_show_cb_t showCallback, settings_changed_cb_t changedCallback, settings_will_exit_cb_t exitCallback);
-
-    /// @brief Know if the settings menu is being shown (thread safe).
-    /// @return Returns `true` if the settings menu is currently showing.
-    bool isShowingSettings();
-    portMUX_TYPE isShowingMenu_mutex = portMUX_INITIALIZER_UNLOCKED;
 
     /**
      * @brief Saves settings to persistent storage.

@@ -27,8 +27,17 @@
 
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
-#include "esp_adc/adc_continuous.h"
+#include "freertos/queue.h"
 #include "esp_timer.h"
+
+#include <esp_lcd_panel_io.h>
+// #include <esp_lcd_panel_vendor.h>
+// #include <esp_lcd_panel_ops.h>
+// #include <driver/ledc.h>
+// #include <driver/spi_master.h>
+// #include "esp_lcd_panel_rgb.h"
+
+#include "waveshare.h"
 
 #include <cmath> // for log2()
 
@@ -38,6 +47,7 @@
 #include "tuner_ui_attitude.h"
 #include "tuner_ui_needle.h"
 #include "tuner_ui_strobe.h"
+#include "tuner_ui_note_quiz.h"
 
 //
 // LVGL Support
@@ -46,8 +56,9 @@
 #include "esp_lvgl_port.h"
 
 extern "C" { // because these files are C and not C++
-    #include "lcd.h"
-    #include "touch.h"
+    // #include "lcd.h"
+    // #include "touch.h"
+    // #include "ST7701S.h"
 }
 
 static const char *TAG = "GUI";
@@ -55,6 +66,7 @@ static const char *TAG = "GUI";
 extern TunerController *tunerController;
 extern UserSettings *userSettings;
 extern "C" const lv_font_t fontawesome_48;
+extern QueueHandle_t frequencyQueue;
 
 // Local Function Declarations
 void update_ui(TunerState old_state, TunerState new_state);
@@ -65,27 +77,22 @@ void create_settings_ui();
 
 float midi_note_from_frequency(float freq);
 TunerNoteName get_pitch_name_and_cents_from_frequency(float freq, float *cents);
-void create_standby_ui();
-void create_tuning_ui();
 void settings_button_cb(lv_event_t *e);
 void create_settings_menu_button(lv_obj_t * parent);
 static esp_err_t app_lvgl_main();
 
+static esp_lcd_panel_io_handle_t lcd_io;
+static esp_lcd_panel_handle_t lcd_panel;
+
 lv_coord_t screen_width = 0;
 lv_coord_t screen_height = 0;
 
-lv_display_t *lvgl_display = NULL;
+extern lv_display_t *lvgl_display;
 lv_obj_t *main_screen = NULL;
 
 bool is_gui_loaded = false;
 
-/// This variable is used to keep track of what state the UI is in. Initially
-/// the code would try to rebuild the UI inside of the button press handling of
-/// gpio_task but that was causing problems probably because not much memory is
-/// allocated to that task. This now allows the UI task to change after-the-fact
-/// and do the GUI changes inside tuner_gui_task.
-TunerState current_ui_tuner_state = tunerStateBooting;
-portMUX_TYPE current_ui_tuner_state_mutex = portMUX_INITIALIZER_UNLOCKED;
+float current_frequency = -1.0f;
 
 //
 // GPIO Footswitch and Relay Pin Variables
@@ -99,12 +106,6 @@ portMUX_TYPE current_ui_tuner_state_mutex = portMUX_INITIALIZER_UNLOCKED;
 // int footswitch_press_count = 0;
 // int64_t footswitch_press_start_time = 0;
 // int64_t last_footswitch_press_time = 0;
-
-//
-// Local Function Declarations
-//
-// void configure_gpio_pins();
-// void handle_gpio_pins();
 
 ///
 /// Add Standby GUIs here.
@@ -149,6 +150,14 @@ TunerGUIInterface attitude_gui = {
     .cleanup = attitude_gui_cleanup
 };
 
+TunerGUIInterface note_quiz_gui = {
+    .get_id = quiz_gui_get_id,
+    .get_name = quiz_gui_get_name,
+    .init = quiz_gui_init,
+    .display_frequency = quiz_gui_display_frequency,
+    .cleanup = quiz_gui_cleanup
+};
+
 TunerGUIInterface available_guis[] = {
 
     // IMPORTANT: Make sure you update `num_of_available_guis` below so any new
@@ -157,9 +166,10 @@ TunerGUIInterface available_guis[] = {
     needle_gui, // ID = 0
     strobe_gui,
     attitude_gui,
+    note_quiz_gui,
 };
 
-size_t num_of_available_guis = 3;
+size_t num_of_available_guis = 4;
 
 TunerStandbyGUIInterface *active_standby_gui = NULL;
 TunerGUIInterface *active_gui = NULL;
@@ -182,85 +192,77 @@ TunerGUIInterface get_active_gui() {
 ///
 /// @param pvParameter User data (unused).
 void tuner_gui_task(void *pvParameter) {
-    esp_lcd_panel_io_handle_t lcd_io;
-    esp_lcd_panel_handle_t lcd_panel;
-    esp_lcd_touch_handle_t tp;
-    lvgl_port_touch_cfg_t touch_cfg;
 
-    ESP_ERROR_CHECK(lcd_display_brightness_init());
+    ESP_ERROR_CHECK(waveshare_lcd_init());
+    ESP_ERROR_CHECK(waveshare_lvgl_init());
+    // ESP_ERROR_CHECK(waveshare_touch_init()); // Don't use Touch for now
 
-    ESP_ERROR_CHECK(app_lcd_init(&lcd_io, &lcd_panel));
-    lvgl_display = app_lvgl_init(lcd_io, lcd_panel);
-    if (lvgl_display == NULL)
-    {
-        ESP_LOGI(TAG, "fatal error in app_lvgl_init");
-        esp_restart();
-    }
-
-    ESP_ERROR_CHECK(touch_init(&tp));
-    touch_cfg.disp = lvgl_display;
-    touch_cfg.handle = tp;
-    lvgl_port_add_touch(&touch_cfg);
-
+    // Make sure the user's preferred rotation is set up before we draw the screen.
     if (lvgl_port_lock(0)) {
-        ESP_ERROR_CHECK(lcd_display_brightness_set(userSettings->displayBrightness * 10 + 10)); // Adjust for 0 - 10%, 1 - 20%, etc.
         ESP_ERROR_CHECK(lcd_display_rotate(lvgl_display, userSettings->getDisplayOrientation()));
-        // ESP_ERROR_CHECK(lcd_display_rotate(lvgl_display, LV_DISPLAY_ROTATION_0)); // Upside Down
         lvgl_port_unlock();
     }
 
     ESP_ERROR_CHECK(app_lvgl_main());
+    
+    // lvgl_port_lock(0);
+    // lv_obj_t *label = lv_label_create(lv_screen_active());
+    // lv_label_set_text(label, "Hello world.");
+    // lv_obj_align(label, LV_ALIGN_CENTER, 0, 0);
+    // lvgl_port_unlock();
 
-    is_gui_loaded = true;
+    // while(1) {
+    //     lv_timer_handler();
+    //     vTaskDelay(pdMS_TO_TICKS(33));
+    // }
+
+    is_gui_loaded = true; // Prevents some other threads that rely on LVGL from running until the UI is loaded
 
     float cents;
 
+    ESP_LOGI(TAG, "Mem: %d", heap_caps_get_free_size(MALLOC_CAP_DMA));
+    
     // Use old_tuner_ui_state to keep track of the old state locally (in this
-    // function). When gpio_task signals that the state should change, the
-    // callback quickly writes to the current_ui_tuner_state (using a mutex) and
-    // then tuner_gui_task does the actual update inside the while loop.
+    // function).
     TunerState old_tuner_ui_state = tunerController->getState();
     TunerState initial_state = userSettings->initialState;
     tunerController->setState(initial_state);
 
     while(1) {
-        // handle_gpio_pins();
+        TunerState newState = tunerController->getState();
 
-        lv_task_handler();
-
-        TunerState newState = tunerStateBooting;
-        portENTER_CRITICAL(&current_ui_tuner_state_mutex);
-        newState = current_ui_tuner_state;
-        portEXIT_CRITICAL(&current_ui_tuner_state_mutex);
-
-        if (old_tuner_ui_state != current_ui_tuner_state) {
-            update_ui(old_tuner_ui_state, current_ui_tuner_state);
-            old_tuner_ui_state = current_ui_tuner_state;
+        if (old_tuner_ui_state != newState) {
+            update_ui(old_tuner_ui_state, newState);
+            old_tuner_ui_state = newState;
         }
 
-        bool monitoring_mode = userSettings->monitoringMode && current_ui_tuner_state == tunerStateStandby;
-        if ((monitoring_mode || current_ui_tuner_state == tunerStateTuning) && lvgl_port_lock(0)) {
-            bool show_mute_indicator = current_ui_tuner_state == tunerStateTuning;
-            float frequency = get_current_frequency();
-            if (frequency > 0) {
-                TunerNoteName note_name = get_pitch_name_and_cents_from_frequency(frequency, &cents);
+        bool monitoring_mode = userSettings->monitoringMode && newState == tunerStateStandby;
+        if ((monitoring_mode || newState == tunerStateTuning) && lvgl_port_lock(0)) {
+            bool show_mute_indicator = newState == tunerStateTuning && userSettings->monitoringMode;
+            
+            if (!xQueuePeek(frequencyQueue, &current_frequency, 0)) {
+                current_frequency = -1;
+            }
+            if (current_frequency > 0) {
+                TunerNoteName note_name = get_pitch_name_and_cents_from_frequency(current_frequency, &cents);
                 // ESP_LOGI(TAG, "%s - %d", noteName, cents);
-                get_active_gui().display_frequency(frequency, note_name, cents, show_mute_indicator);
+                get_active_gui().display_frequency(current_frequency, note_name, cents, show_mute_indicator);
             } else {
                 get_active_gui().display_frequency(0, NOTE_NONE, 0, show_mute_indicator);
             }
-            // Release the mutex
+
             lvgl_port_unlock();
-            vTaskDelay(pdMS_TO_TICKS(125)); // Yields to reset watchdog in milliseconds
-        } else {
-            // Nothing to do
-            vTaskDelay(pdMS_TO_TICKS(200));
         }
+        
+        lv_timer_handler();
+        vTaskDelay(pdMS_TO_TICKS(33));
+        // vTaskDelay(pdMS_TO_TICKS(10));
     }
     vTaskDelay(portMAX_DELAY);
 }
 
 void update_ui(TunerState old_state, TunerState new_state) {
+    ESP_LOGI(TAG, "Old State: %d, New State: %d", old_state, new_state);
     if (!lvgl_port_lock(0)) {
         return;
     }
@@ -299,7 +301,7 @@ void update_ui(TunerState old_state, TunerState new_state) {
         break;
     case tunerStateStandby:
         if (!userSettings->monitoringMode) {
-            lcd_display_brightness_set(0.0); // Turn off the display
+            lcd_display_brightness_set(0); // Turn off the display
             create_standby_ui();
         }
         break;
@@ -317,14 +319,6 @@ void update_ui(TunerState old_state, TunerState new_state) {
     }
 
     lvgl_port_unlock();
-}
-
-void tuner_gui_task_tuner_state_changed(TunerState old_state, TunerState new_state) {
-    // Change the value of current_ui_tuner_state so the main UI thread will be
-    // able to change after the tuner state changes.
-    portENTER_CRITICAL(&current_ui_tuner_state_mutex);
-    current_ui_tuner_state = new_state;
-    portEXIT_CRITICAL(&current_ui_tuner_state_mutex);
 }
 
 void user_settings_updated() {
@@ -347,7 +341,7 @@ void create_tuning_ui() {
     get_active_gui().init(main_screen);
 
     // Place the settings button on the UI (bottom left)
-    // create_settings_menu_button(main_screen);
+    create_settings_menu_button(main_screen);
 }
 
 void create_settings_ui() {
@@ -398,9 +392,9 @@ void create_settings_menu_button(lv_obj_t * parent) {
 }
 
 static esp_err_t app_lvgl_main() {
-    // ESP_LOGI("LOCK", "locking in app_lvgl_main");
     lvgl_port_lock(0);
-    // ESP_LOGI("LOCK", "locked in app_lvgl_main");
+
+    ESP_LOGI(TAG, "Starting LVGL Main");
 
     lv_obj_t *scr = lv_scr_act();
     screen_width = lv_obj_get_width(scr);
@@ -413,11 +407,8 @@ static esp_err_t app_lvgl_main() {
     // objects are placed outside of the bounds of the screen.
     lv_obj_set_scroll_dir(main_screen, LV_DIR_NONE);
 
-//    create_tuning_ui();
-
     // ESP_LOGI("LOCK", "unlocking in app_lvgl_main");
     lvgl_port_unlock();
-    // ESP_LOGI("LOCK", "unlocked in app_lvgl_main");
 
     userSettings->setDisplayAndScreen(lvgl_display, main_screen);
 

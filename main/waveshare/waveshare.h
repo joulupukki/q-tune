@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024 Boyd Timothy. All rights reserved.
+ * Copyright (c) 2025 Boyd Timothy. All rights reserved.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,23 +16,24 @@
  *
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
-#include "globals.h"
+#pragma once
 
-#include "freertos/FreeRTOS.h"
+#include "esp_err.h"
+#include "ST7789.h"
+#include "LVGL_Driver.h"
 
-float current_frequency = -1.0f;
-portMUX_TYPE current_frequency_mutex = portMUX_INITIALIZER_UNLOCKED;
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-float get_current_frequency() {
-    float frequency = -1.0f;
-    portENTER_CRITICAL(&current_frequency_mutex);
-    frequency = current_frequency;
-    portEXIT_CRITICAL(&current_frequency_mutex);
-    return frequency;
+esp_err_t waveshare_lcd_init();
+esp_err_t waveshare_lvgl_init();
+esp_err_t waveshare_touch_init();
+
+esp_err_t lcd_display_rotate(lv_display_t * lvgl_disp, lv_display_rotation_t dir);
+esp_err_t lcd_display_brightness_set(uint8_t brightness);
+
+
+#ifdef __cplusplus
 }
-
-void set_current_frequency(float new_frequency) {
-    portENTER_CRITICAL(&current_frequency_mutex);
-    current_frequency = new_frequency;
-    portEXIT_CRITICAL(&current_frequency_mutex);
-}
+#endif

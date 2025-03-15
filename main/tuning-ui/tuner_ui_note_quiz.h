@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024 Boyd Timothy. All rights reserved.
+ * Copyright (c) 2025 Boyd Timothy. All rights reserved.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,11 +16,16 @@
  *
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
-#if !defined(TUNER_GUI_TASK)
-#define TUNER_GUI_TASK
+#if !defined(TUNER_NOTE_QUIZ_GUI)
+#define TUNER_NOTE_QUIZ_GUI
 
-#include "tuner_controller.h"
+#include "globals.h"
+#include "lvgl.h"
 
-void user_settings_updated();
+uint8_t quiz_gui_get_id();
+const char * quiz_gui_get_name();
+void quiz_gui_init(lv_obj_t *screen);
+void quiz_gui_display_frequency(float frequency, TunerNoteName note_name, float cents, bool show_mute_indicator);
+void quiz_gui_cleanup();
 
 #endif

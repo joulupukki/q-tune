@@ -24,7 +24,11 @@
 
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
+#include "freertos/queue.h"
 #include "esp_adc/adc_continuous.h"
+// #include "esp_adc/adc_cali.h"
+// #include "esp_adc/adc_cali_scheme.h"
+#include "esp_adc/adc_filter.h"
 #include "esp_timer.h"
 
 //
@@ -60,20 +64,25 @@ using pitch = cycfi::q::pitch;
 CONSTEXPR frequency low_fs = cycfi::q::pitch_names::C[1];
 CONSTEXPR frequency high_fs = cycfi::q::pitch_names::C[7]; // Setting this higher helps to catch the high harmonics
 
-static adc_channel_t channel[1] = {ADC_CHANNEL_7}; // ESP32-WROOM-32 CYD - GPIO 35 (ADC1_CH7)
+// static adc_channel_t channel[1] = {ADC_CHANNEL_7}; // ESP32-WROOM-32 CYD - GPIO 35 (ADC1_CH7)
+// static adc_channel_t channel[1] = {ADC_CHANNEL_3}; // ESP32-S3 EBD4 - GPIO 4 (ADC1_CH3)
+static adc_channel_t channel[1] = {TUNER_ADC_CHANNEL}; // ESP32-S3 EBD2 - GPIO 10 (ADC1_CH9)
 
 // 1EU Filter Initialization Params
 static const double euFilterFreq = EU_FILTER_ESTIMATED_FREQ; // I believe this means no guess as to what the incoming frequency will initially be
 static const double mincutoff = EU_FILTER_MIN_CUTOFF;
 static const double dcutoff = EU_FILTER_DERIVATIVE_CUTOFF;
 
+// adc_cali_handle_t cali_handle = NULL;
+
 ExponentialSmoother smoother(DEFAULT_EXP_SMOOTHING);
 OneEuroFilter oneEUFilter(euFilterFreq, mincutoff, DEFAULT_ONE_EU_BETA, dcutoff);
-// MovingAverage movingAverage(DEFAULT_MOVING_AVG_WINDOW);
+// MovingAverage movingAverage(3);
 // MedianFilter medianMovingFilter(3, true);
 MedianFilter medianFilter(5, false);
 
 extern UserSettings *userSettings;
+extern QueueHandle_t frequencyQueue;
 
 static TaskHandle_t s_task_handle;
 static bool IRAM_ATTR s_conv_done_cb(adc_continuous_handle_t handle, const adc_continuous_evt_data_t *edata, void *user_data)
@@ -85,7 +94,7 @@ static bool IRAM_ATTR s_conv_done_cb(adc_continuous_handle_t handle, const adc_c
     return (mustYield == pdTRUE);
 }
 
-static void continuous_adc_init(adc_channel_t *channel, uint8_t channel_count, adc_continuous_handle_t *out_handle)
+static void continuous_adc_init(adc_channel_t *channel, uint8_t channel_count, adc_continuous_handle_t *out_handle, adc_iir_filter_handle_t *out_filter_handle)
 {
     adc_continuous_handle_t handle = NULL;
 
@@ -102,14 +111,19 @@ static void continuous_adc_init(adc_channel_t *channel, uint8_t channel_count, a
     adc_digi_pattern_config_t adc_pattern[SOC_ADC_PATT_LEN_MAX] = {0};
     for (int i = 0; i < channel_count; i++) {
         adc_pattern[i].atten = TUNER_ADC_ATTEN;
-        adc_pattern[i].channel = channel[i] & 0x7;
+        adc_pattern[i].channel = channel[i] & 0x0F;
         adc_pattern[i].unit = TUNER_ADC_UNIT;
         adc_pattern[i].bit_width = TUNER_ADC_BIT_WIDTH;
 
-        ESP_LOGI(TAG, "adc_pattern[%d].atten is :%" PRIx8, i, adc_pattern[i].atten);
-        ESP_LOGI(TAG, "adc_pattern[%d].channel is :%" PRIx8, i, adc_pattern[i].channel);
-        ESP_LOGI(TAG, "adc_pattern[%d].unit is :%" PRIx8, i, adc_pattern[i].unit);
+        ESP_LOGI(TAG, "adc_pattern[%d].atten:     %"PRIu8"", i, adc_pattern[i].atten);
+        ESP_LOGI(TAG, "adc_pattern[%d].channel:   %"PRIu8"", i, adc_pattern[i].channel);
+        ESP_LOGI(TAG, "adc_pattern[%d].unit:      %"PRIu8"", i, adc_pattern[i].unit);
+        ESP_LOGI(TAG, "adc_pattern[%d].bit_width: %"PRIu8"", i, adc_pattern[i].bit_width);
     }
+
+    // int adc_gpio_num = -1;
+    // adc_continuous_channel_to_io(TUNER_ADC_UNIT, TUNER_ADC_CHANNEL, &adc_gpio_num);
+    // ESP_LOGI(TAG, "ADC Channel 9 is on GPIO %d", adc_gpio_num);
 
     adc_continuous_config_t dig_cfg = {
         .pattern_num = channel_count,
@@ -121,6 +135,21 @@ static void continuous_adc_init(adc_channel_t *channel, uint8_t channel_count, a
 
     // dig_cfg.adc_pattern = adc_pattern;
     ESP_ERROR_CHECK(adc_continuous_config(handle, &dig_cfg));
+
+    // adc_cali_curve_fitting_config_t curve_cfg = {
+    //     .unit_id = TUNER_ADC_UNIT,
+    //     .chan = TUNER_ADC_CHANNEL,
+    //     .atten = TUNER_ADC_ATTEN,
+    //     .bitwidth = ADC_BITWIDTH_12,
+    // };
+    // ESP_ERROR_CHECK(adc_cali_create_scheme_curve_fitting(&curve_cfg, &cali_handle));
+
+    adc_continuous_iir_filter_config_t iir_filter_cfg = {
+        .unit = TUNER_ADC_UNIT,
+        .channel = TUNER_ADC_CHANNEL,
+        .coeff = TUNER_ACD_FILTER_COEFF,
+    };
+    ESP_ERROR_CHECK(adc_new_continuous_iir_filter(handle, &iir_filter_cfg, out_filter_handle));
 
     *out_handle = handle;
 }
@@ -171,7 +200,8 @@ void pitch_detector_task(void *pvParameter) {
     s_task_handle = xTaskGetCurrentTaskHandle();
     
     adc_continuous_handle_t handle = NULL;
-    continuous_adc_init(channel, sizeof(channel) / sizeof(adc_channel_t), &handle);
+    adc_iir_filter_handle_t adc_filter = NULL;
+    continuous_adc_init(channel, sizeof(channel) / sizeof(adc_channel_t), &handle, &adc_filter);
 
     adc_continuous_evt_cbs_t cbs = {
         .on_conv_done = s_conv_done_cb,
@@ -180,6 +210,9 @@ void pitch_detector_task(void *pvParameter) {
     ESP_ERROR_CHECK(adc_continuous_start(handle));
 
     // adc_ll_digi_set_convert_limit_num(2); // potential hack for the ESP32 ADC bug
+
+    float values[TUNER_ADC_FRAME_SIZE];
+    // float *values = (float *)malloc(sizeof(float) * valuesStored);
 
     while (1) {
         /**
@@ -193,8 +226,8 @@ void pitch_detector_task(void *pvParameter) {
         ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
 
         while (1) {
-            if (userSettings == NULL || userSettings->isShowingSettings()) {
-                // Don't read the signal when the settings menu is showing.
+            if (userSettings == NULL) {
+                // Things aren't yet initialized. Do nothing.
                 vTaskDelay(pdMS_TO_TICKS(500));
                 continue;
             }
@@ -216,8 +249,15 @@ void pitch_detector_task(void *pvParameter) {
                     //     ESP_LOGI(TAG, "read value is: %d", TUNER_ADC_GET_DATA(p));
                     // }
 
+                    int value = TUNER_ADC_GET_DATA(p);
+                    // int calibratedValue;
+                    // esp_err_t r = adc_cali_raw_to_voltage(cali_handle, value, &calibratedValue);
+                    // if (r == ESP_OK) {
+                    //     value = calibratedValue;
+                    // }
+
                     // Do a first pass by just storing the raw values into the float array
-                    in[valuesStored] = TUNER_ADC_GET_DATA(p);
+                    in[valuesStored] = value;
 
                     // Track the min and max values we see so we can convert to values between -1.0f and +1.0f
                     if (in[valuesStored] > maxVal) {
@@ -231,32 +271,34 @@ void pitch_detector_task(void *pvParameter) {
                 // Bail out if the input does not meet the minimum criteria
                 float range = maxVal - minVal;
                 if (range < TUNER_READING_DIFF_MINIMUM) {
-                    set_current_frequency(-1); // Indicate to the UI that there's no frequency available
+                    float no_freq = -1;
+                    xQueueOverwrite(frequencyQueue, &no_freq);
+                    // set_current_frequency(-1); // Indicate to the UI that there's no frequency available
                     oneEUFilter.reset(); // Reset the 1EU filter so the next frequency it detects will be as fast as possible
                     smoother.reset();
                     // movingAverage.reset();
                     // medianMovingFilter.reset();
                     medianFilter.reset();
                     pd.reset();
-                    vTaskDelay(10 / portTICK_PERIOD_MS); // Should be 10ms?
+                    vTaskDelay(pdMS_TO_TICKS(10));
+                    // vTaskDelay(10 / portTICK_PERIOD_MS); // Should be 10ms?
                     continue;
                 }
 
-                // ESP_LOGI(TAG, "Min: %f, Max: %f, peak-to-peak: %f", minVal, maxVal, range);
                 oneEUFilter.setBeta(userSettings->oneEUBeta);
                 smoother.setAmount(userSettings->expSmoothing);
 
                 // Normalize the values between -1.0 and +1.0 before processing with qlib.
                 float midVal = range / 2;
-                // ESP_LOGI("min, max, range, mid:", "%f, %f, %f, %f", minVal, maxVal, range, midVal);
+                // ESP_LOGI(TAG, "min: %f  max: %f  range: %f  mid: %f", minVal, maxVal, range, midVal);
                 for (auto i = 0; i < valuesStored; i++) {
                     // ESP_LOGI("adc", "%f", in[i]);
                     float newPosition = in[i] - midVal - minVal;
                     float normalizedValue = newPosition / midVal;
                     // ESP_LOGI("norm-val", "%f is now %f", in[i], normalizedValue);
-                    in[i] = normalizedValue;
-
-                    float s = in[i]; // input signal
+                    // in[i] = normalizedValue;
+                    // float s = in[i]; // input signal
+                    float s = normalizedValue;
 
                     // s = medianMovingFilter.addValue(s);
 
@@ -266,6 +308,9 @@ void pitch_detector_task(void *pvParameter) {
 
                     // Signal Conditioner
                     s = sig_cond(s);
+                    // s = s * 2.5;
+
+                    // s = movingAverage.addValue(s);
 
                     // // Bandpass filter
                     // s = lp(s);
@@ -318,10 +363,21 @@ void pitch_detector_task(void *pvParameter) {
                         // Median Filter
                         f = medianFilter.addValue(f);
                         if (f != -1.0f) {
-                            set_current_frequency(f);
+                            xQueueOverwrite(frequencyQueue, &f);
+
+                            // int8_t current_seconds = (int8_t)time_seconds;
+                            // if (current_seconds % 2 == 0) {
+                            //     ESP_LOGI(TAG, "Frequency: %f", f);
+                            // }
                         }
                     }
                 }
+
+                // printf("----BEGIN----\n");
+                // for (int i = 0; i < valuesStored; i++) {
+                //     printf("%f,", in[i]);
+                // }
+                // printf("\n");
 
                 /**
                  * Because printing is slow, so every time you call `ulTaskNotifyTake`, it will immediately return.
@@ -329,7 +385,8 @@ void pitch_detector_task(void *pvParameter) {
                  * usually you don't need this delay (as this task will block for a while).
                  */
                 // vTaskDelay(1); // potentially no longer needed
-                vTaskDelay(10 / portTICK_PERIOD_MS); // Should be 10ms?
+                // vTaskDelay(10 / portTICK_PERIOD_MS); // Should be 10ms?
+                vTaskDelay(pdMS_TO_TICKS(10));
             } else if (ret == ESP_ERR_TIMEOUT) {
                 //We try to read `EXAMPLE_READ_LEN` until API returns timeout, which means there's no available data
                 break;
