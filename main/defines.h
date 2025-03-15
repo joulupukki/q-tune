@@ -78,8 +78,8 @@
 // Pitch Detector Related
 //
 #define TUNER_ADC_UNIT                  ADC_UNIT_2
-#define TUNER_ADC_CHANNEL               ADC_CHANNEL_4 // GPIO15
-// #define TUNER_ADC_CHANNEL               ADC_CHANNEL_7 // GPIO18
+// #define TUNER_ADC_CHANNEL               ADC_CHANNEL_4 // GPIO15 - According to the ESP32-S3 datasheet, GPIO15 is a strapping pin and shouldn't be used
+#define TUNER_ADC_CHANNEL               ADC_CHANNEL_7 // GPIO18
 #define TUNER_ADC_CONV_MODE             ADC_CONV_SINGLE_UNIT_2
 #define _TUNER_ADC_UNIT_STR(unit)       #unit
 #define TUNER_ADC_UNIT_STR(unit)        _TUNER_ADC_UNIT_STR(unit)
