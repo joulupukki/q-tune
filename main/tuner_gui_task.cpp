@@ -248,8 +248,8 @@ void tuner_gui_task(void *pvParameter) {
             if (current_frequency > 0) {
                 if (get_note_info(current_frequency, &target_frequency, &target_note, &target_octave, &cents) == ESP_OK) {
                     get_active_gui().display_frequency(current_frequency, target_note, cents, show_mute_indicator);
-                    ESP_LOGI(TAG, "Freq: %f, Target Freq: %f, Closest Note: %s%d, Cents: %f",
-                        current_frequency, target_frequency, name_for_note(target_note), target_octave, cents);
+                    // ESP_LOGI(TAG, "Freq: %f, Target Freq: %f, Closest Note: %s%d, Cents: %f",
+                    //     current_frequency, target_frequency, name_for_note(target_note), target_octave, cents);
         
                 } else {
                     get_active_gui().display_frequency(current_frequency, NOTE_NONE, 0, show_mute_indicator);
