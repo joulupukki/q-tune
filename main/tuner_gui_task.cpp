@@ -75,8 +75,7 @@ void create_standby_ui();
 void create_tuning_ui();
 void create_settings_ui();
 
-float midi_note_from_frequency(float freq);
-TunerNoteName get_pitch_name_and_cents_from_frequency(float freq, float *cents);
+esp_err_t get_note_info(float input_freq, float *target_frequency, TunerNoteName *target_note, int *target_octave, float *cents_off);
 void settings_button_cb(lv_event_t *e);
 void create_settings_menu_button(lv_obj_t * parent);
 static esp_err_t app_lvgl_main();
@@ -218,6 +217,9 @@ void tuner_gui_task(void *pvParameter) {
 
     is_gui_loaded = true; // Prevents some other threads that rely on LVGL from running until the UI is loaded
 
+    float target_frequency;
+    TunerNoteName target_note;
+    int target_octave;
     float cents;
 
     ESP_LOGI(TAG, "Mem: %d", heap_caps_get_free_size(MALLOC_CAP_DMA));
@@ -244,9 +246,14 @@ void tuner_gui_task(void *pvParameter) {
                 current_frequency = -1;
             }
             if (current_frequency > 0) {
-                TunerNoteName note_name = get_pitch_name_and_cents_from_frequency(current_frequency, &cents);
-                // ESP_LOGI(TAG, "%s - %d", noteName, cents);
-                get_active_gui().display_frequency(current_frequency, note_name, cents, show_mute_indicator);
+                if (get_note_info(current_frequency, &target_frequency, &target_note, &target_octave, &cents) == ESP_OK) {
+                    get_active_gui().display_frequency(current_frequency, target_note, cents, show_mute_indicator);
+                    ESP_LOGI(TAG, "Freq: %f, Target Freq: %f, Closest Note: %s%d, Cents: %f",
+                        current_frequency, target_frequency, name_for_note(target_note), target_octave, cents);
+        
+                } else {
+                    get_active_gui().display_frequency(current_frequency, NOTE_NONE, 0, show_mute_indicator);
+                }
             } else {
                 get_active_gui().display_frequency(0, NOTE_NONE, 0, show_mute_indicator);
             }
@@ -340,39 +347,43 @@ void create_tuning_ui() {
     // First build the Tuner UI
     get_active_gui().init(main_screen);
 
-    // Place the settings button on the UI (bottom left)
-    create_settings_menu_button(main_screen);
+    // // Place the settings button on the UI (bottom left)
+    // create_settings_menu_button(main_screen);
 }
 
 void create_settings_ui() {
     userSettings->showSettings();
 }
 
-// Function to calculate the MIDI note number from frequency
-float midi_note_from_frequency(float freq) {
-    return 69 + 12 * log2(freq / A4_FREQ);
-}
-
-// Function to get pitch name and cents from MIDI note number
-TunerNoteName get_pitch_name_and_cents_from_frequency(float freq, float *cents) {
-    float midi_note = midi_note_from_frequency(freq);
-    int note_index = (int)fmod(midi_note, 12);
-    float fractional_note = midi_note - (int)midi_note;
-
-    *cents = (fractional_note * CENTS_PER_SEMITONE);
-    if (*cents >= CENTS_PER_SEMITONE / 2) {
-        // Adjust the note index so that it still shows the proper note
-        note_index++;
-        if (note_index >= 12) {
-            note_index = 0; // Overflow to the beginning of the note names
-        }
-        *cents -= CENTS_PER_SEMITONE; // Adjust to valid range
+/// @brief Function to compute the closest note and cent deviation
+esp_err_t get_note_info(float input_freq, float *target_frequency, TunerNoteName *target_note, int *target_octave, float *cents_off) {
+    if (input_freq <= 0) {
+        return ESP_FAIL;
     }
-
-    if (note_index > 12) { // safeguard to prevent crash of snprintf()
-        note_index = 0;
+    
+    // Calculate the number of semitones away from A4
+    float semitone_offset = 12 * log2(input_freq / A4_FREQ);
+    int closest_semitone = (int)round(semitone_offset);
+    
+    // Compute the closest note index (modulo 12 for chromatic scale)
+    int note_index = (closest_semitone + 9) % 12;
+    if (note_index < 0) {
+        note_index += 12; // Ensure positive index
     }
-    return (TunerNoteName)note_index;
+    int octave = 4 + ((closest_semitone + 9) / 12); // Determine octave number
+    
+    // Compute the frequency of the closest note
+    float closest_note_freq = A4_FREQ * pow(2.0, closest_semitone / 12.0);
+    *target_frequency = closest_note_freq;
+    
+    // Calculate the cent deviation
+    // *cents_off = (int)round(1200 * log2(input_freq / closest_note_freq));
+    *cents_off = 1200 * log2(input_freq / closest_note_freq);
+    
+    *target_note = (TunerNoteName)note_index;
+
+    *target_octave = octave;
+    return ESP_OK;
 }
 
 void settings_button_cb(lv_event_t *e) {
