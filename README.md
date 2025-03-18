@@ -40,6 +40,9 @@ The project first used a Heltec ESP32-S3 with a smaller display, graduated to th
 
 ## Demo
 
+We're getting closer to releasing the first version. Here's a demo of how it's looking on 13 Mar 2025:
+[![Demo Video](https://youtube.com/live/pk4hbDYdYKE/0.jpg)](https://youtube.com/live/pk4hbDYdYKE)
+
 Here's a simple demo of how the project is coming along as of 10 Dec 2024:
 [![Demo Video](https://img.youtube.com/vi/im-Qe8d9LSk/0.jpg)](https://youtu.be/im-Qe8d9LSk)
 
