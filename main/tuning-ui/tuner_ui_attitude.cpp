@@ -123,7 +123,7 @@ void attitude_gui_init(lv_obj_t *screen) {
     attitude_create_labels(screen);
 }
 
-void attitude_gui_display_frequency(float frequency, TunerNoteName note_name, float cents, bool show_mute_indicator) {
+void attitude_gui_display_frequency(float frequency, float target_frequency, TunerNoteName note_name, int octave, float cents, bool show_mute_indicator) {
     if (note_name < 0) { return; } // Strangely I'm sometimes seeing negative values. No idea how.
     if (note_name != NOTE_NONE) {
         lv_label_set_text_fmt(attitude_frequency_label, "%.2f", frequency);

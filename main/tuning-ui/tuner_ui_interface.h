@@ -44,15 +44,22 @@ typedef struct {
     /// for the active Tuner GUI. If the user enters exits tuning mode,
     /// `cleanup()` will be called and `init()` will be called when tuning mode
     /// is reactivated.
+    ///
+    /// You should prefer to create items in memory that are needed to support
+    /// the tuner in this init function and clean them up in the `cleanup()`
+    /// function. This will allow the user to switch to other tuning UIs without
+    /// causing problems with memory allocation.
     void (*init)(lv_obj_t *screen);
     
     /// @brief Display the frequency/note/cents/etc.
-    /// @param frequency The frequency in Hz.
+    /// @param frequency The detected frequency in Hz.
+    /// @param target_frequency The target frequency in Hz.
     /// @param note_name The note name (e.g. A, B, C, etc.).
+    /// @param octave The octave number of the detected note.
     /// @param cents The number of cents off from the note (e.g. -50, 0, 50).
     /// @param show_mute_indicator True if the tuner is in tuning mode and
     /// should show the mute indicator (because of monitoring mode).
-    void (*display_frequency)(float frequency, TunerNoteName note_name, float cents, bool show_mute_indicator);
+    void (*display_frequency)(float frequency, float target_frequency, TunerNoteName note_name, int octave, float cents, bool show_mute_indicator);
 
     /// @brief Perform any cleanup needed (this UI is being deactivated).
     ///

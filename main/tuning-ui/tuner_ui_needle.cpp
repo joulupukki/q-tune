@@ -99,7 +99,7 @@ void needle_gui_init(lv_obj_t *screen) {
     needle_create_labels(screen);
 }
 
-void needle_gui_display_frequency(float frequency, TunerNoteName note_name, float cents, bool show_mute_indicator) {
+void needle_gui_display_frequency(float frequency, float target_frequency, TunerNoteName note_name, int octave, float cents, bool show_mute_indicator) {
     if (note_name < 0) { return; } // Strangely I'm sometimes seeing negative values. No idea how.
     if (note_name != NOTE_NONE) {
         lv_label_set_text_fmt(needle_frequency_label, "%.2f", frequency);

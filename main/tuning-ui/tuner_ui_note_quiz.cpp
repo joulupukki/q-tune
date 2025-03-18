@@ -145,7 +145,7 @@ void quiz_gui_init(lv_obj_t *screen) {
     lv_obj_set_style_img_recolor(quiz_sharp_img, quiz_user_note_color, 0);
 }
 
-void quiz_gui_display_frequency(float frequency, TunerNoteName note_name, float cents, bool show_mute_indicator) {
+void quiz_gui_display_frequency(float frequency, float target_frequency, TunerNoteName note_name, int octave, float cents, bool show_mute_indicator) {
     if (note_name < 0) { return; } // Strangely I'm sometimes seeing negative values. No idea how.
 
     if (quiz_current_target_note == NOTE_NONE) {

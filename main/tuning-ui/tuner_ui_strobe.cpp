@@ -104,7 +104,7 @@ void strobe_gui_init(lv_obj_t *screen) {
 float strobe_last_frequency = 0.0;
 float strobe_last_cents = 0.0;
 
-void strobe_gui_display_frequency(float frequency, TunerNoteName note_name, float cents, bool show_mute_indicator) {
+void strobe_gui_display_frequency(float frequency, float target_frequency, TunerNoteName note_name, int octave, float cents, bool show_mute_indicator) {
     if (note_name < 0) { return; } // Strangely I'm sometimes seeing negative values. No idea how.
     if (note_name != NOTE_NONE) {
         if (strobe_last_frequency != frequency) {

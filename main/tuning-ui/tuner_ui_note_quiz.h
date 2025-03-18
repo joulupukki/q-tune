@@ -25,7 +25,7 @@
 uint8_t quiz_gui_get_id();
 const char * quiz_gui_get_name();
 void quiz_gui_init(lv_obj_t *screen);
-void quiz_gui_display_frequency(float frequency, TunerNoteName note_name, float cents, bool show_mute_indicator);
+void quiz_gui_display_frequency(float frequency, float target_frequency, TunerNoteName note_name, int octave, float cents, bool show_mute_indicator);
 void quiz_gui_cleanup();
 
 #endif
