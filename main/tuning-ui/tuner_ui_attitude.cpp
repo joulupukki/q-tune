@@ -180,6 +180,7 @@ void attitude_create_slider(lv_obj_t * parent) {
     // the slider is moved.
     lv_obj_t *background_sky = lv_obj_create(parent);
     lv_obj_set_size(background_sky, lv_pct(100), lv_pct(50));
+    lv_obj_set_style_border_width(background_sky, 0, 0);
     lv_obj_set_style_bg_color(background_sky, lv_color_hex(ATTITUDE_SKY_COLOR), 0);
     lv_obj_set_style_radius(background_sky, 0, 0);
     lv_obj_align(background_sky, LV_ALIGN_TOP_LEFT, 0, 0);
@@ -289,7 +290,7 @@ void attitude_create_labels(lv_obj_t * parent) {
 
     attitude_sharp_img = lv_image_create(attitude_note_img_container);
     lv_image_set_src(attitude_sharp_img, &tuner_font_image_sharp);
-    lv_obj_align_to(attitude_sharp_img, attitude_note_img, LV_ALIGN_TOP_RIGHT, 40, -30);
+    lv_obj_align_to(attitude_sharp_img, attitude_note_img, LV_ALIGN_TOP_RIGHT, 20, -15);
     lv_obj_add_flag(attitude_sharp_img, LV_OBJ_FLAG_HIDDEN);
     
     // Enable recoloring on the images
@@ -364,10 +365,11 @@ void attitude_create_arrows(lv_obj_t * parent) {
     // Create the center lines
     lv_obj_t *center_line_left = lv_obj_create(parent);
     lv_obj_set_size(center_line_left, ATTITUDE_INDICATOR_LINE_WIDTH, ATTITUDE_INDICATOR_LINE_HEIGHT);
-    lv_obj_set_style_border_color(center_line_left, lv_palette_main(LV_PALETTE_ORANGE), 0);
-    lv_obj_set_style_border_width(center_line_left, ATTITUDE_INDICATOR_BORDER_WIDTH, 0);
-    // lv_obj_set_style_bg_color(center_line_left, lv_palette_main(LV_PALETTE_ORANGE), 0);
-    lv_obj_set_style_bg_opa(center_line_left, LV_OPA_0, 0);
+    // lv_obj_set_style_border_color(center_line_left, lv_palette_main(LV_PALETTE_ORANGE), 0);
+    // lv_obj_set_style_border_width(center_line_left, ATTITUDE_INDICATOR_BORDER_WIDTH, 0);
+    // lv_obj_set_style_bg_opa(center_line_left, LV_OPA_0, 0);
+    lv_obj_set_style_border_width(center_line_left, 0, 0);
+    lv_obj_set_style_bg_color(center_line_left, lv_palette_main(LV_PALETTE_ORANGE), 0);
     lv_obj_set_scrollbar_mode(center_line_left, LV_SCROLLBAR_MODE_OFF);
     lv_obj_align(center_line_left, LV_ALIGN_CENTER, -ATTITUDE_INDICATOR_LINE_WIDTH, attitude_is_landscape ? ATTITUDE_LANDSCAPE_VERTICAL_OFFSET : ATTITUDE_PORTRAIT_VERTICAL_OFFSET);
 

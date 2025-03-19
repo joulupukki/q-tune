@@ -46,7 +46,7 @@
 //
 // Smoothing Filters
 //
-// #include "exponential_smoother.hpp"
+#include "exponential_smoother.hpp"
 #include "OneEuroFilter.h"
 #include "MovingAverage.hpp"
 // #include "MedianFilter.hpp"
@@ -69,7 +69,7 @@ static adc_channel_t channel[1] = {TUNER_ADC_CHANNEL}; // ESP32-S3 EBD2 - GPIO 1
 
 // adc_cali_handle_t cali_handle = NULL;
 
-// ExponentialSmoother smoother(EXP_SMOOTHING);
+ExponentialSmoother smoother(EXP_SMOOTHING);
 OneEuroFilter oneEUFilter(
     EU_FILTER_ESTIMATED_FREQ,
     EU_FILTER_MIN_CUTOFF,
@@ -310,7 +310,7 @@ void pitch_detector_task(void *pvParameter) {
                     // set_current_frequency(-1); // Indicate to the UI that there's no frequency available
                     oneEUFilter.reset(); // Reset the 1EU filter so the next frequency it detects will be as fast as possible
                     oneEUFilter2.reset();
-                    // smoother.reset();
+                    smoother.reset();
                     movingAverage.reset();
                     // medianMovingFilter.reset();
                     // medianFilter.reset();
@@ -384,6 +384,7 @@ void pitch_detector_task(void *pvParameter) {
                         f = (float)oneEUFilter.filter((double)f, (TimeStamp)time_seconds);
 
                         f = movingAverage.addValue(f);
+                        f = smoother.smooth(f);
                         
                         oneEUFilter2.setFrequency(f);
                         time_seconds = (double)esp_timer_get_time() / 1000000;

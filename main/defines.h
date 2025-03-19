@@ -224,7 +224,7 @@ typedef struct {
 #define EU_FILTER_DERIVATIVE_CUTOFF_2   1.0
 
 // Exponential Smoothing
-// #define EXP_SMOOTHING                  ((float) 0.45)
+#define EXP_SMOOTHING                  ((float) 0.5)
 
 //
 // GUI Related

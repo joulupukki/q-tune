@@ -40,6 +40,9 @@ The project first used a Heltec ESP32-S3 with a smaller display, graduated to th
 
 ## Demo
 
+Better smoothing and pre-amp circuit 19 Mar 2025:
+[![Demo Video](https://img.youtube.com/vi/D6ZLS6r_rAo/0.jpg)](https://www.youtube.com/watch?v=D6ZLS6r_rAo)
+
 We're getting closer to releasing the first version. Here's a demo of how it's looking on 13 Mar 2025:
 [![Demo Video](https://img.youtube.com/vi/pk4hbDYdYKE/0.jpg)](https://youtube.com/live/pk4hbDYdYKE)
 
