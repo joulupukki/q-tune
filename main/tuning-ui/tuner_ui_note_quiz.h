@@ -19,8 +19,8 @@
 #if !defined(TUNER_NOTE_QUIZ_GUI)
 #define TUNER_NOTE_QUIZ_GUI
 
-#include "globals.h"
 #include "lvgl.h"
+#include "defines.h"
 
 uint8_t quiz_gui_get_id();
 const char * quiz_gui_get_name();

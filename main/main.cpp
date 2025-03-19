@@ -23,7 +23,6 @@
 #include "esp_timer.h"
 
 #include "defines.h"
-#include "globals.h"
 #include "user_settings.h"
 #include "tuner_controller.h"
 #include "tuner_gui_task.h"
@@ -125,7 +124,6 @@ extern "C" void app_main() {
     tunerController = new TunerController(tuner_state_will_change_cb, tuner_state_did_change_cb, footswitch_pressed_cb);
 
     frequencyQueue = xQueueCreate(FREQUENCY_QUEUE_LENGTH, FREQUENCY_QUEUE_ITEM_SIZE);
-
     if (frequencyQueue == NULL) {
         ESP_LOGE(TAG, "Frequency Queue creation failed!");
     } else {

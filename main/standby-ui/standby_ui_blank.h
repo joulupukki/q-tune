@@ -19,7 +19,6 @@
 #if !defined(STANDBY_BLANK_GUI)
 #define STANDBY_BLANK_GUI
 
-#include "globals.h"
 #include "lvgl.h"
 
 uint8_t blank_standby_gui_get_id();

@@ -22,6 +22,55 @@
 #include "driver/gpio.h"
 #include "hal/adc_types.h"
 
+typedef enum {
+    NOTE_C = 0,
+    NOTE_C_SHARP,
+    NOTE_D,
+    NOTE_D_SHARP,
+    NOTE_E,
+    NOTE_F,
+    NOTE_F_SHARP,
+    NOTE_G,
+    NOTE_G_SHARP,
+    NOTE_A,
+    NOTE_A_SHARP,
+    NOTE_B,
+    NOTE_NONE
+} TunerNoteName;
+
+inline const char *name_for_note(TunerNoteName note) { 
+    switch (note) {
+        case NOTE_C:
+            return "C";
+        case NOTE_C_SHARP:
+            return "C#";
+        case NOTE_D:
+            return "D";
+        case NOTE_D_SHARP:
+            return "D#";
+        case NOTE_E:
+            return "E";
+        case NOTE_F:
+            return "F";
+        case NOTE_F_SHARP:
+            return "F#";
+        case NOTE_G:
+            return "G";
+        case NOTE_G_SHARP:
+            return "G#";
+        case NOTE_A:
+            return "A";
+        case NOTE_A_SHARP:
+            return "A#";
+        case NOTE_B:
+            return "B";
+        case NOTE_NONE:
+            return "-";
+        default:
+            return "Unknown";
+    }
+}
+
 //
 // RTOS Queues
 //
@@ -29,8 +78,17 @@
 // The pitch detector task will always write the latest value of detection on
 // the queue. Use a length of 1 so we can use xQueueOverwrite and xQueuePeek so
 // the very latest frequency info is always available to anywhere.
+
+typedef struct {
+    float frequency;
+    float cents;
+    float targetFrequency;
+    TunerNoteName targetNote;
+    int targetOctave;
+} FrequencyInfo;
+
 #define FREQUENCY_QUEUE_LENGTH 1
-#define FREQUENCY_QUEUE_ITEM_SIZE sizeof(float)
+#define FREQUENCY_QUEUE_ITEM_SIZE sizeof(FrequencyInfo)
 
 #define TUNER_STATE_QUEUE_LENGTH 1
 #define TUNER_STATE_QUEUE_ITEM_SIZE sizeof(uint8_t)
@@ -129,7 +187,7 @@
 
 /// @brief This factor is used to correct the incoming frequency readings on ESP32-WROOM-32 (which CYD is). This same weird behavior does not happen on ESP32-S2 or ESP32-S3.
 // #define WEIRD_ESP32_WROOM_32_FREQ_FIX_FACTOR    1.2222222223 // 11/9 but using 11/9 gives completely incorrect results. Weird.
-#define WEIRD_ESP32_WROOM_32_FREQ_FIX_FACTOR    1 // ESP32-S3 does not need this correction.
+// #define WEIRD_ESP32_WROOM_32_FREQ_FIX_FACTOR    1 // ESP32-S3 does not need this correction.
 
 // HELTEC @ 20kHz
 // #define TUNER_ADC_FRAME_SIZE            (SOC_ADC_DIGI_DATA_BYTES_PER_CONV * 256)
@@ -147,16 +205,26 @@
 // OLED and only attempt to read frequency information when an
 // actual input signal is being read.
 // #define TUNER_READING_DIFF_MINIMUM      80
-#define TUNER_READING_DIFF_MINIMUM      100
+// #define TUNER_READING_DIFF_MINIMUM      100
+#define TUNER_READING_DIFF_MINIMUM      600
 
 //
 // Smoothing
 //
 
 // 1EU Filter
-#define EU_FILTER_ESTIMATED_FREQ        48000 // Same as https://github.com/bkshepherd/DaisySeedProjects/blob/main/Software/GuitarPedal/Util/frequency_detector_q.h
-#define EU_FILTER_MIN_CUTOFF            0.5
-#define EU_FILTER_DERIVATIVE_CUTOFF     1
+#define EU_FILTER_ESTIMATED_FREQ        110
+
+#define EU_FILTER_MIN_CUTOFF            1.0
+#define EU_FILTER_BETA                  ((float) 0.05)
+#define EU_FILTER_DERIVATIVE_CUTOFF     1.0
+
+#define EU_FILTER_MIN_CUTOFF_2          0.5
+#define EU_FILTER_BETA_2                ((float) 0.05)
+#define EU_FILTER_DERIVATIVE_CUTOFF_2   1.0
+
+// Exponential Smoothing
+// #define EXP_SMOOTHING                  ((float) 0.45)
 
 //
 // GUI Related

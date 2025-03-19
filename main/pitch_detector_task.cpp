@@ -19,7 +19,6 @@
 #include "pitch_detector_task.h"
 
 #include "defines.h"
-#include "globals.h"
 #include "user_settings.h"
 
 #include "esp_log.h"
@@ -47,10 +46,10 @@
 //
 // Smoothing Filters
 //
-#include "exponential_smoother.hpp"
+// #include "exponential_smoother.hpp"
 #include "OneEuroFilter.h"
-// #include "MovingAverage.hpp"
-#include "MedianFilter.hpp"
+#include "MovingAverage.hpp"
+// #include "MedianFilter.hpp"
 
 static const char *TAG = "PitchDetector";
 
@@ -61,25 +60,29 @@ using std::fixed;
 using namespace cycfi::q::pitch_names;
 using frequency = cycfi::q::frequency;
 using pitch = cycfi::q::pitch;
-CONSTEXPR frequency low_fs = cycfi::q::pitch_names::C[1];
+CONSTEXPR frequency low_fs = cycfi::q::pitch_names::B[0]; // Lowest string on a 5-string bass
 CONSTEXPR frequency high_fs = cycfi::q::pitch_names::C[7]; // Setting this higher helps to catch the high harmonics
 
 // static adc_channel_t channel[1] = {ADC_CHANNEL_7}; // ESP32-WROOM-32 CYD - GPIO 35 (ADC1_CH7)
 // static adc_channel_t channel[1] = {ADC_CHANNEL_3}; // ESP32-S3 EBD4 - GPIO 4 (ADC1_CH3)
 static adc_channel_t channel[1] = {TUNER_ADC_CHANNEL}; // ESP32-S3 EBD2 - GPIO 10 (ADC1_CH9)
 
-// 1EU Filter Initialization Params
-static const double euFilterFreq = EU_FILTER_ESTIMATED_FREQ; // I believe this means no guess as to what the incoming frequency will initially be
-static const double mincutoff = EU_FILTER_MIN_CUTOFF;
-static const double dcutoff = EU_FILTER_DERIVATIVE_CUTOFF;
-
 // adc_cali_handle_t cali_handle = NULL;
 
-ExponentialSmoother smoother(DEFAULT_EXP_SMOOTHING);
-OneEuroFilter oneEUFilter(euFilterFreq, mincutoff, DEFAULT_ONE_EU_BETA, dcutoff);
-// MovingAverage movingAverage(3);
+// ExponentialSmoother smoother(EXP_SMOOTHING);
+OneEuroFilter oneEUFilter(
+    EU_FILTER_ESTIMATED_FREQ,
+    EU_FILTER_MIN_CUTOFF,
+    EU_FILTER_BETA,
+    EU_FILTER_DERIVATIVE_CUTOFF);
+OneEuroFilter oneEUFilter2(
+    EU_FILTER_ESTIMATED_FREQ,
+    EU_FILTER_MIN_CUTOFF_2,
+    EU_FILTER_BETA_2,
+    EU_FILTER_DERIVATIVE_CUTOFF_2);
+MovingAverage movingAverage(5);
 // MedianFilter medianMovingFilter(3, true);
-MedianFilter medianFilter(5, false);
+// MedianFilter medianFilter(5, false);
 
 extern UserSettings *userSettings;
 extern QueueHandle_t frequencyQueue;
@@ -154,6 +157,38 @@ static void continuous_adc_init(adc_channel_t *channel, uint8_t channel_count, a
     *out_handle = handle;
 }
 
+/// @brief Function to compute the closest note and cent deviation
+inline esp_err_t get_frequency_info(float input_freq, FrequencyInfo *freqInfo) { //float *target_frequency, TunerNoteName *target_note, int *target_octave, float *cents_off) {
+    if (input_freq <= 0) {
+        return ESP_FAIL;
+    }
+    
+    // Calculate the number of semitones away from A4
+    float semitone_offset = 12 * log2(input_freq / A4_FREQ);
+    int closest_semitone = (int)round(semitone_offset);
+    
+    // Compute the closest note index (modulo 12 for chromatic scale)
+    int note_index = (closest_semitone + 9) % 12;
+    if (note_index < 0) {
+        note_index += 12; // Ensure positive index
+    }
+    int octave = 4 + ((closest_semitone + 9) / 12); // Determine octave number
+    
+    // Compute the frequency of the closest note
+    float closest_note_freq = A4_FREQ * pow(2.0, closest_semitone / 12.0);
+    freqInfo->frequency = input_freq;
+    freqInfo->targetFrequency = closest_note_freq;
+    
+    // Calculate the cent deviation
+    // *cents_off = (int)round(1200 * log2(input_freq / closest_note_freq));
+    freqInfo->cents = 1200 * log2(input_freq / closest_note_freq);
+
+    freqInfo->targetNote = (TunerNoteName)note_index;
+
+    freqInfo->targetOctave = octave;
+    return ESP_OK;
+}
+
 void pitch_detector_task(void *pvParameter) {
     // Prep ADC
     esp_err_t ret;
@@ -167,14 +202,6 @@ void pitch_detector_task(void *pvParameter) {
 
     // Get the pitch detector ready
     q::pitch_detector   pd(low_fs, high_fs, TUNER_ADC_SAMPLE_RATE, -40_dB);
-
-    // Use `lastFrequencyRecordedTime` to know elapsed time since
-    // the frequency was updated for the UI to read. Don't update
-    // more frequently than `minIntervalForFrequencyUpdate`.
-    int64_t lastFrequencyRecordedTime = esp_timer_get_time();
-
-    // Don't update the UI more frequently than this interval
-    int64_t minIntervalForFrequencyUpdate = 50 * 1000; // 50ms
 
     // auto const&                 bits = pd.bits();
     // auto const&                 edges = pd.edges();
@@ -209,10 +236,18 @@ void pitch_detector_task(void *pvParameter) {
     ESP_ERROR_CHECK(adc_continuous_register_event_callbacks(handle, &cbs, NULL));
     ESP_ERROR_CHECK(adc_continuous_start(handle));
 
-    // adc_ll_digi_set_convert_limit_num(2); // potential hack for the ESP32 ADC bug
+    TunerNoteName lastSeenNote = NOTE_NONE;
+    int sameNoteSeenCount = 0;
+    FrequencyInfo freqInfo;
+    FrequencyInfo noFreq = {
+        .frequency = -1,
+        .cents = -1,
+        .targetFrequency = -1,
+        .targetNote = NOTE_NONE,
+        .targetOctave = -1,
+    };
 
-    float values[TUNER_ADC_FRAME_SIZE];
-    // float *values = (float *)malloc(sizeof(float) * valuesStored);
+    TickType_t ticksBetweenFreqDetection = pdMS_TO_TICKS(5);
 
     while (1) {
         /**
@@ -271,22 +306,25 @@ void pitch_detector_task(void *pvParameter) {
                 // Bail out if the input does not meet the minimum criteria
                 float range = maxVal - minVal;
                 if (range < TUNER_READING_DIFF_MINIMUM) {
-                    float no_freq = -1;
-                    xQueueOverwrite(frequencyQueue, &no_freq);
+                    xQueueOverwrite(frequencyQueue, &noFreq);
                     // set_current_frequency(-1); // Indicate to the UI that there's no frequency available
                     oneEUFilter.reset(); // Reset the 1EU filter so the next frequency it detects will be as fast as possible
-                    smoother.reset();
-                    // movingAverage.reset();
+                    oneEUFilter2.reset();
+                    // smoother.reset();
+                    movingAverage.reset();
                     // medianMovingFilter.reset();
-                    medianFilter.reset();
+                    // medianFilter.reset();
                     pd.reset();
-                    vTaskDelay(pdMS_TO_TICKS(10));
-                    // vTaskDelay(10 / portTICK_PERIOD_MS); // Should be 10ms?
+
+                    lastSeenNote = NOTE_NONE;
+                    sameNoteSeenCount = 0;
+
+                    vTaskDelay(ticksBetweenFreqDetection);
                     continue;
                 }
 
-                oneEUFilter.setBeta(userSettings->oneEUBeta);
-                smoother.setAmount(userSettings->expSmoothing);
+                // oneEUFilter.setBeta(userSettings->oneEUBeta);
+                // smoother.setAmount(userSettings->expSmoothing);
 
                 // Normalize the values between -1.0 and +1.0 before processing with qlib.
                 float midVal = range / 2;
@@ -310,8 +348,6 @@ void pitch_detector_task(void *pvParameter) {
                     s = sig_cond(s);
                     // s = s * 2.5;
 
-                    // s = movingAverage.addValue(s);
-
                     // // Bandpass filter
                     // s = lp(s);
                     // s -= lp2(s);
@@ -330,63 +366,63 @@ void pitch_detector_task(void *pvParameter) {
                     //     threshold = onset_threshold;
                     // }
 
-                    int64_t time_us = esp_timer_get_time(); // Get time in microseconds
-                    int64_t time_ms = time_us / 1000; // Convert to milliseconds
-                    int64_t time_seconds = time_us / 1000000;    // Convert to seconds
-                    // int64_t elapsedTimeSinceLastUpdate = time_us - lastFrequencyRecordedTime;
-
                     // Pitch Detect
                     // Send in each value into the pitch detector
-                    // if (pd(s) == true && elapsedTimeSinceLastUpdate >= minIntervalForFrequencyUpdate) { // calculated a frequency
                     if (pd(s) == true) { // calculated a frequency
                         auto f = pd.get_frequency();
 
                         bool use1EUFilterFirst = true; // TODO: This may never be needed. Need to test which "feels" better for tuning
-                        if (use1EUFilterFirst) {
-                            // 1EU Filtering
-                            f = (float)oneEUFilter.filter((double)f, (TimeStamp)time_seconds);
+                        // if (use1EUFilterFirst) {
+                            
+                        // Simple Exponential Smoothing
+                        // f = smoother.smooth(f);
+                        
+                        // 1EU Filtering
+                        double time_seconds;
+                        oneEUFilter.setFrequency(f);
+                        time_seconds = (double)esp_timer_get_time() / 1000000;    // Convert to seconds
+                        f = (float)oneEUFilter.filter((double)f, (TimeStamp)time_seconds);
 
-                            // Simple Exponential Smoothing
-                            f = smoother.smooth(f);
-                        } else {
-                            // Simple Expoential Smoothing
-                            f = smoother.smooth(f);
+                        f = movingAverage.addValue(f);
+                        
+                        oneEUFilter2.setFrequency(f);
+                        time_seconds = (double)esp_timer_get_time() / 1000000;
+                        f = (float)oneEUFilter2.filter((double)f, (TimeStamp)time_seconds);
+                        
+                        // } else {
+                        //     // Simple Expoential Smoothing
+                        //     f = smoother.smooth(f);
 
-                            // 1EU Filtering
-                            f = (float)oneEUFilter.filter((double)f, (TimeStamp)time_seconds);
-                        }
+                        //     // 1EU Filtering
+                        //     f = (float)oneEUFilter.filter((double)f, (TimeStamp)time_seconds);
+                        // }
 
-                        // Moving average (makes it BAD!)
-                        // f = movingAverage.addValue(f);
-                        f = f / WEIRD_ESP32_WROOM_32_FREQ_FIX_FACTOR; // Use the weird factor only on ESP32-WROOM-32 (which the CYD is)
+                        // f = f / WEIRD_ESP32_WROOM_32_FREQ_FIX_FACTOR; // Use the weird factor only on ESP32-WROOM-32 (which the CYD is)
 
-                        // Median Filter
-                        f = medianFilter.addValue(f);
                         if (f != -1.0f) {
-                            xQueueOverwrite(frequencyQueue, &f);
+                            if (get_frequency_info(f, &freqInfo) == ESP_OK) {
+                                // Only show frequency info if we've seen the
+                                // same target note more than once in a row.
+                                // Doing this seems to help prevent sporadic
+                                // notes from appearing right as you pluck a
+                                // string.
 
-                            // int8_t current_seconds = (int8_t)time_seconds;
-                            // if (current_seconds % 2 == 0) {
-                            //     ESP_LOGI(TAG, "Frequency: %f", f);
-                            // }
+                                if (lastSeenNote == freqInfo.targetNote) {
+                                    sameNoteSeenCount++;
+                                } else {
+                                    sameNoteSeenCount = 0;
+                                }
+                                lastSeenNote = freqInfo.targetNote;
+
+                                if (sameNoteSeenCount > 1) {
+                                    xQueueOverwrite(frequencyQueue, &freqInfo);
+                                }
+                            }
                         }
                     }
                 }
 
-                // printf("----BEGIN----\n");
-                // for (int i = 0; i < valuesStored; i++) {
-                //     printf("%f,", in[i]);
-                // }
-                // printf("\n");
-
-                /**
-                 * Because printing is slow, so every time you call `ulTaskNotifyTake`, it will immediately return.
-                 * To avoid a task watchdog timeout, add a delay here. When you replace the way you process the data,
-                 * usually you don't need this delay (as this task will block for a while).
-                 */
-                // vTaskDelay(1); // potentially no longer needed
-                // vTaskDelay(10 / portTICK_PERIOD_MS); // Should be 10ms?
-                vTaskDelay(pdMS_TO_TICKS(10));
+                vTaskDelay(pdMS_TO_TICKS(ticksBetweenFreqDetection));
             } else if (ret == ESP_ERR_TIMEOUT) {
                 //We try to read `EXAMPLE_READ_LEN` until API returns timeout, which means there's no available data
                 break;

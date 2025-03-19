@@ -19,7 +19,6 @@
 #include "tuner_gui_task.h"
 
 #include "defines.h"
-#include "globals.h"
 #include "standby_ui_blank.h"
 #include "tuner_standby_ui_interface.h"
 #include "tuner_ui_interface.h"
@@ -31,11 +30,6 @@
 #include "esp_timer.h"
 
 #include <esp_lcd_panel_io.h>
-// #include <esp_lcd_panel_vendor.h>
-// #include <esp_lcd_panel_ops.h>
-// #include <driver/ledc.h>
-// #include <driver/spi_master.h>
-// #include "esp_lcd_panel_rgb.h"
 
 #include "waveshare.h"
 
@@ -55,12 +49,6 @@
 #include "lvgl.h"
 #include "esp_lvgl_port.h"
 
-extern "C" { // because these files are C and not C++
-    // #include "lcd.h"
-    // #include "touch.h"
-    // #include "ST7701S.h"
-}
-
 static const char *TAG = "GUI";
 
 extern TunerController *tunerController;
@@ -75,7 +63,6 @@ void create_standby_ui();
 void create_tuning_ui();
 void create_settings_ui();
 
-esp_err_t get_note_info(float input_freq, float *target_frequency, TunerNoteName *target_note, int *target_octave, float *cents_off);
 void settings_button_cb(lv_event_t *e);
 void create_settings_menu_button(lv_obj_t * parent);
 static esp_err_t app_lvgl_main();
@@ -91,20 +78,7 @@ lv_obj_t *main_screen = NULL;
 
 bool is_gui_loaded = false;
 
-float current_frequency = -1.0f;
-
-//
-// GPIO Footswitch and Relay Pin Variables
-//
-
-// Keep track of what the relay state is so the app doesn't have to keep making
-// calls to set it over and over (which chews up CPU).
-// uint32_t current_relay_gpio_level = 0; // Off at launch
-
-// int last_footswitch_state = 1; // Assume initial state is open (active-high logic and conveniently matches the physical position of the footswitch)
-// int footswitch_press_count = 0;
-// int64_t footswitch_press_start_time = 0;
-// int64_t last_footswitch_press_time = 0;
+FrequencyInfo freqInfo;
 
 ///
 /// Add Standby GUIs here.
@@ -204,23 +178,7 @@ void tuner_gui_task(void *pvParameter) {
 
     ESP_ERROR_CHECK(app_lvgl_main());
     
-    // lvgl_port_lock(0);
-    // lv_obj_t *label = lv_label_create(lv_screen_active());
-    // lv_label_set_text(label, "Hello world.");
-    // lv_obj_align(label, LV_ALIGN_CENTER, 0, 0);
-    // lvgl_port_unlock();
-
-    // while(1) {
-    //     lv_timer_handler();
-    //     vTaskDelay(pdMS_TO_TICKS(33));
-    // }
-
     is_gui_loaded = true; // Prevents some other threads that rely on LVGL from running until the UI is loaded
-
-    float target_frequency;
-    TunerNoteName target_note;
-    int target_octave;
-    float cents;
 
     ESP_LOGI(TAG, "Mem: %d", heap_caps_get_free_size(MALLOC_CAP_DMA));
     
@@ -241,19 +199,12 @@ void tuner_gui_task(void *pvParameter) {
         bool monitoring_mode = userSettings->monitoringMode && newState == tunerStateStandby;
         if ((monitoring_mode || newState == tunerStateTuning) && lvgl_port_lock(0)) {
             bool show_mute_indicator = newState == tunerStateTuning && userSettings->monitoringMode;
-            
-            if (!xQueuePeek(frequencyQueue, &current_frequency, 0)) {
-                current_frequency = -1;
+
+            if (!xQueuePeek(frequencyQueue, &freqInfo, 0)) {
+                freqInfo.frequency = -1;
             }
-            if (current_frequency > 0) {
-                if (get_note_info(current_frequency, &target_frequency, &target_note, &target_octave, &cents) == ESP_OK) {
-                    get_active_gui().display_frequency(current_frequency, target_frequency, target_note, target_octave, cents, show_mute_indicator);
-                    // ESP_LOGI(TAG, "Freq: %f, Target Freq: %f, Closest Note: %s%d, Cents: %f",
-                    //     current_frequency, target_frequency, name_for_note(target_note), target_octave, cents);
-        
-                } else {
-                    get_active_gui().display_frequency(current_frequency, 0, NOTE_NONE, 0, 0, show_mute_indicator);
-                }
+            if (freqInfo.frequency > 0) {
+                get_active_gui().display_frequency(freqInfo.frequency, freqInfo.frequency, freqInfo.targetNote, freqInfo.targetOctave, freqInfo.cents, show_mute_indicator);
             } else {
                 get_active_gui().display_frequency(0, 0, NOTE_NONE, 0, 0, show_mute_indicator);
             }
@@ -263,7 +214,6 @@ void tuner_gui_task(void *pvParameter) {
         
         lv_timer_handler();
         vTaskDelay(pdMS_TO_TICKS(33));
-        // vTaskDelay(pdMS_TO_TICKS(10));
     }
     vTaskDelay(portMAX_DELAY);
 }
@@ -353,37 +303,6 @@ void create_tuning_ui() {
 
 void create_settings_ui() {
     userSettings->showSettings();
-}
-
-/// @brief Function to compute the closest note and cent deviation
-esp_err_t get_note_info(float input_freq, float *target_frequency, TunerNoteName *target_note, int *target_octave, float *cents_off) {
-    if (input_freq <= 0) {
-        return ESP_FAIL;
-    }
-    
-    // Calculate the number of semitones away from A4
-    float semitone_offset = 12 * log2(input_freq / A4_FREQ);
-    int closest_semitone = (int)round(semitone_offset);
-    
-    // Compute the closest note index (modulo 12 for chromatic scale)
-    int note_index = (closest_semitone + 9) % 12;
-    if (note_index < 0) {
-        note_index += 12; // Ensure positive index
-    }
-    int octave = 4 + ((closest_semitone + 9) / 12); // Determine octave number
-    
-    // Compute the frequency of the closest note
-    float closest_note_freq = A4_FREQ * pow(2.0, closest_semitone / 12.0);
-    *target_frequency = closest_note_freq;
-    
-    // Calculate the cent deviation
-    // *cents_off = (int)round(1200 * log2(input_freq / closest_note_freq));
-    *cents_off = 1200 * log2(input_freq / closest_note_freq);
-    
-    *target_note = (TunerNoteName)note_index;
-
-    *target_octave = octave;
-    return ESP_OK;
 }
 
 void settings_button_cb(lv_event_t *e) {

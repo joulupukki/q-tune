@@ -19,8 +19,8 @@
 #if !defined(TUNER_STROBE_GUI)
 #define TUNER_STROBE_GUI
 
-#include "globals.h"
 #include "lvgl.h"
+#include "defines.h"
 
 uint8_t strobe_gui_get_id();
 const char * strobe_gui_get_name();

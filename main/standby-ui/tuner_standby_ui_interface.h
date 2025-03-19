@@ -21,7 +21,6 @@
 
 #include <stdlib.h>
 
-#include "globals.h"
 #include "lvgl.h"
 
 /// @brief Implement a standby UI by implementing this interface.

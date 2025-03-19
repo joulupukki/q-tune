@@ -19,7 +19,6 @@
 #include "gpio_task.h"
 
 #include "defines.h"
-#include "globals.h"
 #include "tuner_controller.h"
 #include "user_settings.h"
 

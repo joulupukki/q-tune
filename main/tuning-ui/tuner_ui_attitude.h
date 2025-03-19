@@ -19,8 +19,8 @@
 #if !defined(TUNER_ATTITUDE_GUI)
 #define TUNER_ATTITUDE_GUI
 
-#include "globals.h"
 #include "lvgl.h"
+#include "defines.h"
 
 uint8_t attitude_gui_get_id();
 const char * attitude_gui_get_name();

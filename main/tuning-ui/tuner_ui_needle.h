@@ -19,8 +19,8 @@
 #if !defined(TUNER_NEEDLE_GUI)
 #define TUNER_NEEDLE_GUI
 
-#include "globals.h"
 #include "lvgl.h"
+#include "defines.h"
 
 uint8_t needle_gui_get_id();
 const char * needle_gui_get_name();

@@ -21,8 +21,8 @@
 
 #include <stdlib.h>
 
-#include "globals.h"
 #include "lvgl.h"
+#include "defines.h"
 
 /// @brief Implement a tuner UI by implementing this interface.
 typedef struct {

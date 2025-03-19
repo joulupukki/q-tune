@@ -6,36 +6,35 @@
 
 class ExponentialSmoother {
 public:
-    ExponentialSmoother(float amount) : amount(amount) {
-        amount = std::min(amount, 1.0f);
-        amount = std::max(amount, 0.0f);
+    ExponentialSmoother(float alpha) : _alpha(alpha), smoothedValue(0.0), initialized(false) {
+        _alpha = std::min(alpha, 1.0f);
+        _alpha = std::max(alpha, 0.0f);
     }
 
-    float smooth(float value) {
-        float newValue = value;
-        if (values.size() > 0) {
-            float last = values.back();
-            newValue = (amount * value) + (1.0 - amount) * last;
-            if (values.size() > 2) {
-                values.erase(values.begin()); // remove the first item
-            }
+    float smooth(float newValue) {
+        if (!initialized) {
+            smoothedValue = newValue;
+            initialized = true; 
+        } else {
+            smoothedValue = _alpha * newValue + (1 - _alpha) * smoothedValue;
         }
-        values.push_back(value);
-        return newValue;
+        return smoothedValue;
     }
 
-    void setAmount(float newAmount) {
-        amount = std::min(amount, 1.0f);
-        amount = std::max(amount, 0.0f);
+    void setAlpha(float alpha) {
+        _alpha = std::min(alpha, 1.0f);
+        _alpha = std::max(alpha, 0.0f);
     }
 
     void reset() {
-        (void)values.empty();
+        smoothedValue = 0.0;
+        initialized = false;
     }
 
 private:
-    std::vector<float> values;
-    float amount;
+    float _alpha;
+    float smoothedValue;
+    bool initialized;
 };
 
 #endif
