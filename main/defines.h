@@ -71,14 +71,6 @@ inline const char *name_for_note(TunerNoteName note) {
     }
 }
 
-//
-// RTOS Queues
-//
-
-// The pitch detector task will always write the latest value of detection on
-// the queue. Use a length of 1 so we can use xQueueOverwrite and xQueuePeek so
-// the very latest frequency info is always available to anywhere.
-
 typedef struct {
     float frequency;
     float cents;
@@ -86,6 +78,19 @@ typedef struct {
     TunerNoteName targetNote;
     int targetOctave;
 } FrequencyInfo;
+
+typedef enum : uint8_t {
+    tunerBypassTypeTrue = 0,
+    tunerBypassTypeBuffered,
+} TunerBypassType;
+
+//
+// RTOS Queues
+//
+
+// The pitch detector task will always write the latest value of detection on
+// the queue. Use a length of 1 so we can use xQueueOverwrite and xQueuePeek so
+// the very latest frequency info is always available to anywhere.
 
 #define FREQUENCY_QUEUE_LENGTH 1
 #define FREQUENCY_QUEUE_ITEM_SIZE sizeof(FrequencyInfo)
@@ -97,7 +102,8 @@ typedef struct {
 // Foot Switch and Relay (GPIO)
 //
 #define FOOT_SWITCH_GPIO                GPIO_NUM_44 // RXD on EBD2
-#define RELAY_GPIO                      GPIO_NUM_43 // TXD on EBD2
+#define BYPASS_RELAY_GPIO               GPIO_NUM_43 // TXD on EBD2
+#define BYPASS_TYPE_RELAY_GPIO          GPIO_NUM_15 // True Bypass (3.3V "On" state) or Buffered Bypass (0V "Off" state)
 
 #define LONG_PRESS_TIME_MS              1000 // milliseconds
 #define DOUBLE_PRESS_TIME_MS            250 // milliseconds
@@ -119,6 +125,7 @@ typedef struct {
 // Default User Settings
 //
 #define DEFAULT_INITIAL_STATE           ((TunerState) tunerStateTuning)
+#define DEFAULT_BYPASS_TYPE             ((TunerBypassType) tunerBypassTypeTrue)
 #define DEFAULT_STANDBY_GUI_INDEX       (0)
 #define DEFAULT_TUNER_GUI_INDEX         (0)
 #define DEFAULT_IN_TUNE_CENTS_WIDTH     ((uint8_t) 2)

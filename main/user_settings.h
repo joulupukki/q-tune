@@ -84,6 +84,7 @@ class UserSettings {
 public:
     // User Setting Variables
     TunerState          initialState            = DEFAULT_INITIAL_STATE;
+    TunerBypassType     bypassType              = DEFAULT_BYPASS_TYPE;
     uint8_t             standbyGUIIndex         = DEFAULT_STANDBY_GUI_INDEX;
     uint8_t             tunerGUIIndex           = DEFAULT_TUNER_GUI_INDEX; // The ID is also the index in the `available_guis` array.
     uint8_t             inTuneCentsWidth        = DEFAULT_IN_TUNE_CENTS_WIDTH;

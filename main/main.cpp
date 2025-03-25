@@ -43,6 +43,9 @@ TaskHandle_t detectorTaskHandle;
 
 QueueHandle_t frequencyQueue;
 
+/// Queue to keep track of the bypass type state.
+QueueHandle_t bypassTypeQueue;
+
 /* GPIO PINS
 
 P3:
@@ -114,6 +117,22 @@ void user_settings_will_exit_cb() {
 }
 
 extern "C" void app_main() {
+    
+    // Create the info-passing queues before loading settings so they can be used
+    
+    frequencyQueue = xQueueCreate(FREQUENCY_QUEUE_LENGTH, FREQUENCY_QUEUE_ITEM_SIZE);
+    if (frequencyQueue == NULL) {
+        ESP_LOGE(TAG, "Frequency Queue creation failed!");
+    } else {
+        ESP_LOGI(TAG, "Frequency Queue created successfully!");
+    }
+
+    bypassTypeQueue = xQueueCreate(1, sizeof(TunerBypassType));
+    if (bypassTypeQueue == NULL) {
+        ESP_LOGE(TAG, "Bypass Type Queue creation failed!");
+    } else {
+        ESP_LOGI(TAG, "Bypass Type Queue created successfully!");
+    }
 
     // Initialize NVS (Persistent Flash Storage for User Settings)
     userSettings = new UserSettings(user_settings_will_show_cb, user_settings_changed_cb, user_settings_will_exit_cb);
@@ -122,13 +141,6 @@ extern "C" void app_main() {
     // I2C_Init();
 
     tunerController = new TunerController(tuner_state_will_change_cb, tuner_state_did_change_cb, footswitch_pressed_cb);
-
-    frequencyQueue = xQueueCreate(FREQUENCY_QUEUE_LENGTH, FREQUENCY_QUEUE_ITEM_SIZE);
-    if (frequencyQueue == NULL) {
-        ESP_LOGE(TAG, "Frequency Queue creation failed!");
-    } else {
-        ESP_LOGI(TAG, "Frequency Queue created successfully!");
-    }
 
     // // Start the GPIO Task
     xTaskCreatePinnedToCore(
