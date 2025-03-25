@@ -33,11 +33,12 @@
 static const char *TAG = "GPIO";
 
 extern TunerController *tunerController;
-// extern PressEvent footswitch_btn_state;
+extern QueueHandle_t bypassTypeQueue;
 
-// Keep track of what the relay state is so the app doesn't have to keep making
-// calls to set it over and over (which chews up CPU).
-uint32_t current_relay_gpio_level = 0; // Off at launch
+// Keep track of the relay states so the app doesn't have to set them over and over
+// making calls to set it over and over.
+uint32_t current_bypass_relay_level = 0; // Off at launch
+uint32_t current_bypass_type_relay_level = 0; // Off at launch
 
 int footswitch_last_state = 1; // Assume initial state is open (active-high logic and conveniently matches the physical position of the footswitch)
 int footswitch_press_count = 0;
@@ -88,44 +89,6 @@ void gpio_task(void *pvParameter) {
     vTaskDelay(portMAX_DELAY);
 }
 
-// uint8_t footswitch_button_get_level(int GPIO_PIN) {
-//     ESP_LOGI(TAG, "Reading footswitch button level");
-//     return (uint8_t)(gpio_get_level((gpio_num_t)GPIO_PIN));
-// }
-  
-
-// uint8_t read_button_gpio_level(uint8_t button_id) {
-//     if (!button_id) {
-//         return (uint8_t) gpio_get_level(FOOT_SWITCH_GPIO);
-//     }
-//     return 0;
-// }
-// void button_single_click_callback(void* btn) {
-//     ESP_LOGI(TAG, "SINGLE PRESS detected");
-//     struct Button *user_button = (struct Button *)btn;
-//     if (user_button == &footswitchButton) {
-//         footswitch_btn_state = SINGLE_CLICK;
-//     }
-// }
-// void button_double_click_callback(void* btn) {
-//     ESP_LOGI(TAG, "DOUBLE PRESS detected");
-//     struct Button *user_button = (struct Button *)btn;
-//     if (user_button == &footswitchButton) {
-//         footswitch_btn_state = DOUBLE_CLICK;
-//     }
-// }
-// void button_long_press_start_callback(void* btn) {
-//     ESP_LOGI(TAG, "LONG PRESS detected - 0");
-//     struct Button *user_button = (struct Button *)btn;
-//     if (user_button == &footswitchButton) {
-//         footswitch_btn_state = LONG_PRESS_START;
-//     }
-// }
-
-// void button_timer_callback(void *arg) {
-//     button_ticks();
-// }
-
 void configure_gpio_pins() {
     // Configure the Footswitch GPIO as an input pin
     gpio_reset_pin(FOOT_SWITCH_GPIO);
@@ -139,27 +102,10 @@ void configure_gpio_pins() {
 
     gpio_config(&foot_switch_gpio_conf);
 
-    // button_init(&footswitchButton, read_button_gpio_level, 0, 0);
-    // button_attach(&footswitchButton, SINGLE_CLICK, button_single_click_callback);
-    // button_attach(&footswitchButton, DOUBLE_CLICK, button_double_click_callback);
-    // button_attach(&footswitchButton, LONG_PRESS_START, button_long_press_start_callback);
-
-    // const esp_timer_create_args_t clock_tick_timer_args = {
-    //     .callback = &button_timer_callback,
-    //     .arg = NULL,
-    //     .name = "Timer_task",
-    // };
-    // esp_timer_handle_t button_timer = NULL;
-    // ESP_ERROR_CHECK(esp_timer_create(&clock_tick_timer_args, &button_timer));
-    // ESP_ERROR_CHECK(esp_timer_start_periodic(button_timer, 1000 * 5));
-
-    // footswitch_btn_state = NONE_PRESS;
-    // button_start(&footswitchButton);
-
-    // Configure the relay GPIO as an output pin
-    gpio_reset_pin(RELAY_GPIO);
+    // Configure the bypass relay GPIO as an output pin
+    gpio_reset_pin(BYPASS_RELAY_GPIO);
     gpio_config_t relay_gpio_conf = {
-        .pin_bit_mask = (1ULL << RELAY_GPIO),
+        .pin_bit_mask = (1ULL << BYPASS_RELAY_GPIO),
         .mode = GPIO_MODE_OUTPUT,
         .pull_up_en = GPIO_PULLUP_DISABLE,
         .pull_down_en = GPIO_PULLDOWN_DISABLE,
@@ -168,13 +114,26 @@ void configure_gpio_pins() {
 
     gpio_config(&relay_gpio_conf);
 
+    // Configure the bypass type GPIO as an output pin
+    gpio_reset_pin(BYPASS_TYPE_RELAY_GPIO);
+    gpio_config_t bypass_type_gpio_conf = {
+        .pin_bit_mask = (1ULL << BYPASS_TYPE_RELAY_GPIO),
+        .mode = GPIO_MODE_OUTPUT,
+        .pull_up_en = GPIO_PULLUP_DISABLE,
+        .pull_down_en = GPIO_PULLDOWN_DISABLE,
+        .intr_type = GPIO_INTR_DISABLE
+    };
+    gpio_config(&bypass_type_gpio_conf);
+
     // TODO: Read the initial state of the foot switch. If it's a 0, that means
     // the user had it pressed at power up and we may want to do something
     // special.
 
-    // Make sure the relay start out as off
-    gpio_set_level(RELAY_GPIO, 0); // Turn off the relay GPIO
-    current_relay_gpio_level = 0;
+    // Make sure the relays start out as off
+    gpio_set_level(BYPASS_RELAY_GPIO, 0); // Turn off the relay GPIO
+    current_bypass_relay_level = 0;
+    gpio_set_level(BYPASS_TYPE_RELAY_GPIO, 0);
+    current_bypass_type_relay_level = 0;
     ESP_LOGI(TAG, "GPIO Pins Configured");
 }
 
@@ -241,15 +200,30 @@ void handle_button_press() {
 /// here in gpio_task but if the user has tuning set as their initial startup
 /// screen, we need to make sure to turn the relay on.
 void ensure_relay_state() {
+    // Make sure the main bypass/tuning relay is in the correct state
     TunerState current_state = tunerController->getState();
-    if (current_state == tunerStateStandby && current_relay_gpio_level != 0) {
-        gpio_set_level(RELAY_GPIO, 0); // Turn off relay
-        current_relay_gpio_level = 0;
-        ESP_LOGI(TAG, "Turning OFF the relay");
-    } else if (current_state == tunerStateTuning && current_relay_gpio_level != 1) {
-        gpio_set_level(RELAY_GPIO, 1); // Turn on relay
-        current_relay_gpio_level = 1;
-        ESP_LOGI(TAG, "Turning ON the relay");
+    if (current_state == tunerStateStandby && current_bypass_relay_level != 0) {
+        gpio_set_level(BYPASS_RELAY_GPIO, 0); // Turn off relay
+        current_bypass_relay_level = 0;
+        ESP_LOGI(TAG, "Turning OFF the bypass relay (going to standby mode)");
+    } else if (current_state == tunerStateTuning && current_bypass_relay_level != 1) {
+        gpio_set_level(BYPASS_RELAY_GPIO, 1); // Turn on relay
+        current_bypass_relay_level = 1;
+        ESP_LOGI(TAG, "Turning ON the bypass relay (going to tuning mode)");
+    }
+
+    // Make sure the bypass type relay is in the correct state
+    TunerBypassType current_bypass_type;
+    if (xQueuePeek(bypassTypeQueue, &current_bypass_type, 0) == pdTRUE) {
+        if (current_bypass_type == tunerBypassTypeTrue && current_bypass_type_relay_level != 0) {
+            gpio_set_level(BYPASS_TYPE_RELAY_GPIO, 0);
+            current_bypass_type_relay_level = 0;
+            ESP_LOGI(TAG, "Turning OFF the bypass type relay (going to true bypass mode)");
+        } else if (current_bypass_type == tunerBypassTypeBuffered && current_bypass_type_relay_level != 1) {
+            gpio_set_level(BYPASS_TYPE_RELAY_GPIO, 1);
+            current_bypass_type_relay_level = 1;
+            ESP_LOGI(TAG, "Turning ON the bypass type relay (going to buffered bypass mode)");
+        }
     }
 }
 
@@ -262,8 +236,8 @@ void handle_single_press(void *param) {
     case tunerStateStandby:
         ESP_LOGI(TAG, "Turning ON the relay and going to tuning mode");
         // Turn on the relay which should mute the output
-        gpio_set_level(RELAY_GPIO, 1); // Turn on relay
-        current_relay_gpio_level = 1;
+        gpio_set_level(BYPASS_RELAY_GPIO, 1); // Turn on relay
+        current_bypass_relay_level = 1;
         
         // Go to tuning mode
         tunerController->setState(tunerStateTuning);
@@ -271,8 +245,8 @@ void handle_single_press(void *param) {
     case tunerStateTuning:
         ESP_LOGI(TAG, "Turning OFF the relay and going to standby mode");
         // Turn off the relay which should unmute the output
-        gpio_set_level(RELAY_GPIO, 0); // Turn off relay
-        current_relay_gpio_level = 0;
+        gpio_set_level(BYPASS_RELAY_GPIO, 0); // Turn off relay
+        current_bypass_relay_level = 0;
 
         // Go to standby mode
         tunerController->setState(tunerStateStandby);

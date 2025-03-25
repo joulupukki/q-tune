@@ -27,14 +27,18 @@ static const char *TAG = "Settings";
 extern TunerController *tunerController;
 extern TunerGUIInterface available_guis[1]; // defined in tuner_gui_task.cpp
 extern size_t num_of_available_guis;
+extern QueueHandle_t bypassTypeQueue;
 
 #ifndef PROJECT_VERSION
-#define PROJECT_VERSION "0.0.1"
+#define PROJECT_VERSION "0.0.1" // This gets set in the main CMakeLists.txt file
 #endif
 
 #define MENU_BTN_TUNER              "Tuner"
     #define MENU_BTN_TUNER_MODE         "Mode"
     #define MENU_BTN_IN_TUNE_THRESHOLD  "In-Tune Threshold"
+    #define MENU_BTN_BYPASS_TYPE        "Bypass Type"
+        #define MENU_BTN_TRUE_BYPASS        "True Bypass"
+        #define MENU_BTN_BUFFERED_BYPASS    "Buffered Bypass"
     #define MENU_BTN_MONITORING_MODE    "Monitoring Mode"
         #define MENU_BTN_MONITORING_OFF      "Off"
         #define MENU_BTN_MONITORING_ON       "On"
@@ -66,6 +70,7 @@ extern size_t num_of_available_guis;
 
 // Setting keys in NVS can only be up to 15 chars max
 #define SETTINGS_INITIAL_SCREEN             "initial_screen"
+#define SETTINGS_BYPASS_TYPE                "bypass_type"
 #define SETTING_STANDBY_GUI_INDEX           "standby_gui_idx"
 #define SETTING_TUNER_GUI_INDEX             "tuner_gui_index"
 #define SETTING_KEY_IN_TUNE_WIDTH           "in_tune_width"
@@ -116,6 +121,8 @@ static void handleTunerButtonClicked(lv_event_t *e);
 static void handleTunerModeButtonClicked(lv_event_t *e);
 static void handleTunerModeSelected(lv_event_t *e);
 static void handleInTuneThresholdButtonClicked(lv_event_t *e);
+static void handleBypassTypeButtonClicked(lv_event_t *e);
+static void handleBypassTypeSelected(lv_event_t *e);
 static void handleMonitoringModeButtonClicked(lv_event_t *e);
 static void handleInTuneThresholdRadio(lv_event_t *e);
 static void handleMonitoringModeRadio(lv_event_t *e);
@@ -169,6 +176,16 @@ void UserSettings::loadSettings() {
         initialState = DEFAULT_INITIAL_STATE;
     }
     ESP_LOGI(TAG, "Initial State: %d", initialState);
+
+    if (nvs_get_u8(nvsHandle, SETTINGS_BYPASS_TYPE, &value) == ESP_OK) {
+        bypassType = (TunerBypassType)value;
+    } else {
+        bypassType = DEFAULT_BYPASS_TYPE;
+    }
+    ESP_LOGI(TAG, "Bypass Type: %d", bypassType);
+    // Set the initial value in the queue so gpio_task will set the relay in
+    // the correct state.
+    xQueueOverwrite(bypassTypeQueue, &bypassType);
 
     if (nvs_get_u8(nvsHandle, SETTING_STANDBY_GUI_INDEX, &value) == ESP_OK) {
         standbyGUIIndex = value;
@@ -298,6 +315,10 @@ void UserSettings::saveSettings() {
     value = initialState;
     ESP_LOGI(TAG, "Initial State: %d", value);
     nvs_set_u8(nvsHandle, SETTINGS_INITIAL_SCREEN, value);
+
+    value = bypassType;
+    ESP_LOGI(TAG, "Bypass Type: %d", value);
+    nvs_set_u8(nvsHandle, SETTINGS_BYPASS_TYPE, value);
 
     value = standbyGUIIndex;
     ESP_LOGI(TAG, "Standby GUI Index: %d", value);
@@ -877,14 +898,16 @@ static void handleTunerButtonClicked(lv_event_t *e) {
     const char *buttonNames[] = {
         MENU_BTN_TUNER_MODE,
         MENU_BTN_IN_TUNE_THRESHOLD,
+        MENU_BTN_BYPASS_TYPE,
         MENU_BTN_MONITORING_MODE,
     };
     lv_event_cb_t callbackFunctions[] = {
         handleTunerModeButtonClicked,
         handleInTuneThresholdButtonClicked,
+        handleBypassTypeButtonClicked,
         handleMonitoringModeButtonClicked,
     };
-    settings->createMenu(buttonNames, NULL, NULL, callbackFunctions, 3);
+    settings->createMenu(buttonNames, NULL, NULL, callbackFunctions, 4);    
 }
 
 static void handleTunerModeButtonClicked(lv_event_t *e) {
@@ -965,6 +988,55 @@ static void handleInTuneThresholdButtonClicked(lv_event_t *e) {
                                handleInTuneThresholdRadio,
                                &settings->inTuneCentsWidth,
                                1); // this setting is 1-based instead of 0-based
+}
+
+static void handleBypassTypeButtonClicked(lv_event_t *e) {
+    ESP_LOGI(TAG, "Bypass type clicked");
+    UserSettings *settings;
+    if (!lvgl_port_lock(0)) {
+        return;
+    }
+    settings = (UserSettings *)lv_obj_get_user_data((lv_obj_t *)lv_event_get_target(e));
+    lvgl_port_unlock();
+    const char *buttonNames[] = {
+        MENU_BTN_TRUE_BYPASS,
+        MENU_BTN_BUFFERED_BYPASS,
+    };
+    settings->createRadioList((const char *)MENU_BTN_BYPASS_TYPE, 
+                               buttonNames,
+                               sizeof(buttonNames) / sizeof(buttonNames[0]),
+                               NULL,
+                               handleBypassTypeSelected,
+                               (uint8_t *)&settings->bypassType,
+                               0); // a 0-based setting
+}
+
+static void handleBypassTypeSelected(lv_event_t *e) {
+    if (!lvgl_port_lock(0)) {
+        return;
+    }
+
+    uint8_t *bypassTypeSetting = (uint8_t *)lv_event_get_user_data(e);
+    int32_t radioIndex = ((int32_t)*bypassTypeSetting);
+
+    lv_obj_t * cont = (lv_obj_t *)lv_event_get_current_target(e);
+    lv_obj_t * act_cb = (lv_obj_t *)lv_event_get_target(e);
+    lv_obj_t * old_cb = (lv_obj_t *)lv_obj_get_child(cont, radioIndex);
+
+    // Do nothing if the container was clicked
+    if(act_cb == cont) return;
+
+    lv_obj_remove_state(old_cb, LV_STATE_CHECKED);   /*Uncheck the previous radio button*/
+    lv_obj_add_state(act_cb, LV_STATE_CHECKED);     /*Uncheck the current radio button*/
+
+    *bypassTypeSetting = lv_obj_get_index(act_cb);
+    ESP_LOGI(TAG, "New Bypass Type setting: %d", *bypassTypeSetting);
+
+    // Make sure the queue is updated with the new bypass type. This will allow
+    // the gpio_task to update the actual GPIO to high or low state.
+    xQueueOverwrite(bypassTypeQueue, bypassTypeSetting);
+
+    lvgl_port_unlock();
 }
 
 static void handleMonitoringModeButtonClicked(lv_event_t *e) {
