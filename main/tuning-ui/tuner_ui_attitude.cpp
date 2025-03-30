@@ -94,8 +94,6 @@ lv_obj_t *attitude_cents_label;
 lv_style_t attitude_cents_label_style;
 bool attitude_is_landscape = false;
 
-float attitude_rotation_current_pos = 0;
-
 lv_anim_t *attitude_last_note_anim = NULL;
 
 uint8_t attitude_gui_get_id() {

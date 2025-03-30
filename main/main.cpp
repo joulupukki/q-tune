@@ -157,7 +157,8 @@ extern "C" void app_main() {
     xTaskCreatePinnedToCore(
         tuner_gui_task,     // callback function
         "tuner_gui",        // debug name of the task
-        16384,              // stack depth (no idea what this should be)
+        // 16384,              // stack depth (no idea what this should be)
+        32768,              // stack depth (no idea what this should be)
         NULL,               // params to pass to the callback function
         1,                  // ux priority - higher value is higher priority
         NULL,               // handle to the created task - we don't need it
