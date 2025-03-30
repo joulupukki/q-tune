@@ -136,7 +136,7 @@ void strobe_gui_display_frequency(float frequency, float target_frequency, Tuner
             lv_obj_clear_flag(strobe_arc_container, LV_OBJ_FLAG_HIDDEN);
         }
 
-        strobe_amount_to_rotate = cents * 0.25; // Dividing the cents in half for the amount of rotation seems to feel about right
+        strobe_amount_to_rotate = cents * 0.1;
     } else {
         strobe_amount_to_rotate = 0.0;
         // Hide the pitch and indicators since it's not detected

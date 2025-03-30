@@ -13,6 +13,8 @@ version=$(sed -n 's/set(PROJECT_VER "\([^"]*\)").*/\1/p' "CMakeLists.txt")
 if [ -n "$version" ]; then
     echo "Copying q-tune-$version.bin to the web installer"
     cp build/q-tune-$version.bin ../q-tune-installer/docs/artifacts/
+    cp build/partition_table/partition-table.bin ../q-tune-installer/docs/artifacts/
+    cp build/bootloader/bootloader.bin ../q-tune-installer/docs/artifacts/
 else
     echo "Version string not found."
     exit 1
