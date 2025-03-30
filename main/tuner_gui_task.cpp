@@ -40,8 +40,9 @@
 //
 #include "tuner_ui_attitude.h"
 #include "tuner_ui_needle.h"
-#include "tuner_ui_strobe.h"
 #include "tuner_ui_note_quiz.h"
+#include "tuner_ui_record_time.h"
+#include "tuner_ui_strobe.h"
 
 //
 // LVGL Support
@@ -72,6 +73,7 @@ static esp_lcd_panel_handle_t lcd_panel;
 
 lv_coord_t screen_width = 0;
 lv_coord_t screen_height = 0;
+bool is_landscape = false;
 
 extern lv_display_t *lvgl_display;
 lv_obj_t *main_screen = NULL;
@@ -123,6 +125,14 @@ TunerGUIInterface attitude_gui = {
     .cleanup = attitude_gui_cleanup
 };
 
+TunerGUIInterface record_time_ui = {
+    .get_id = record_time_gui_get_id,
+    .get_name = record_time_gui_get_name,
+    .init = record_time_gui_init,
+    .display_frequency = record_time_gui_display_frequency,
+    .cleanup = record_time_gui_cleanup
+};
+
 TunerGUIInterface note_quiz_gui = {
     .get_id = quiz_gui_get_id,
     .get_name = quiz_gui_get_name,
@@ -139,10 +149,11 @@ TunerGUIInterface available_guis[] = {
     needle_gui, // ID = 0
     strobe_gui,
     attitude_gui,
+    record_time_ui,
     note_quiz_gui,
 };
 
-size_t num_of_available_guis = 4;
+size_t num_of_available_guis = 5;
 
 TunerStandbyGUIInterface *active_standby_gui = NULL;
 TunerGUIInterface *active_gui = NULL;
@@ -285,6 +296,7 @@ void user_settings_updated() {
 
     screen_width = lv_obj_get_width(main_screen);
     screen_height = lv_obj_get_height(main_screen);
+    is_landscape = screen_width > screen_height;
 
     lvgl_port_unlock();
 }
@@ -329,6 +341,7 @@ static esp_err_t app_lvgl_main() {
     lv_obj_t *scr = lv_scr_act();
     screen_width = lv_obj_get_width(scr);
     screen_height = lv_obj_get_height(scr);
+    is_landscape = screen_width > screen_height;
     lv_obj_set_style_bg_color(scr, lv_color_black(), LV_PART_MAIN);
     lv_obj_set_scrollbar_mode(scr, LV_SCROLLBAR_MODE_OFF);
     main_screen = scr;

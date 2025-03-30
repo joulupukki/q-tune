@@ -115,7 +115,7 @@ lv_color_t quiz_slider_out_color;
 int64_t quiz_last_note_change_time_ms = -1;
 
 uint8_t quiz_gui_get_id() {
-    return 3;
+    return 4;
 }
 
 const char * quiz_gui_get_name() {

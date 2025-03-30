@@ -20,12 +20,20 @@ set(SRCS
     fonts/tuner_font_image_none2x.c
     fonts/tuner_font_image_sharp2x.c
 
+    images/record_time_title_1.c
+    images/record_time_title_2.c
+    images/record_time_title_3.c
+    images/record_time_title_4.c
+    images/record_time_title_5.c
+    images/record_time_arm.c
+
     standby-ui/standby_ui_blank.cpp
 
     tuning-ui/tuner_ui_attitude.cpp
     tuning-ui/tuner_ui_needle.cpp
-    tuning-ui/tuner_ui_strobe.cpp
     tuning-ui/tuner_ui_note_quiz.cpp
+    tuning-ui/tuner_ui_record_time.cpp
+    tuning-ui/tuner_ui_strobe.cpp
 
     utils/OneEuroFilter.cpp
 
