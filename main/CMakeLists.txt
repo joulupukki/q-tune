@@ -49,7 +49,6 @@ set(SRCS
 set(INCLUDE_DIRS
     .
     fonts
-    hardware
     standby-ui
     tuning-ui
     utils
