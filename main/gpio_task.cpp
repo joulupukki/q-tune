@@ -34,6 +34,7 @@ static const char *TAG = "GPIO";
 
 extern TunerController *tunerController;
 extern QueueHandle_t bypassTypeQueue;
+extern QueueHandle_t bypassTypeSettingsScreenQeuue;
 
 // Keep track of the relay states so the app doesn't have to set them over and over
 // making calls to set it over and over.
@@ -201,6 +202,8 @@ void handle_button_press() {
 /// screen, we need to make sure to turn the relay on.
 void ensure_relay_state() {
     // Make sure the main bypass/tuning relay is in the correct state
+
+    bool is_showing_bypass_type_settings_screen = false;
     TunerState current_state = tunerController->getState();
     if (current_state == tunerStateStandby && current_bypass_relay_level != 0) {
         gpio_set_level(BYPASS_RELAY_GPIO, 0); // Turn off relay
@@ -210,6 +213,24 @@ void ensure_relay_state() {
         gpio_set_level(BYPASS_RELAY_GPIO, 1); // Turn on relay
         current_bypass_relay_level = 1;
         ESP_LOGI(TAG, "Turning ON the bypass relay (going to tuning mode)");
+    } else if (current_state == tunerStateSettings && xQueuePeek(bypassTypeSettingsScreenQeuue, &is_showing_bypass_type_settings_screen, 0) == pdTRUE) {
+        if (is_showing_bypass_type_settings_screen) {
+            // If we're in the bypass type settings screen, we want to turn off the relay
+            // so the user can hear the difference between true and buffered bypass.
+            if (current_bypass_relay_level != 0) {
+                gpio_set_level(BYPASS_RELAY_GPIO, 0); // Turn off relay
+                current_bypass_relay_level = 0;
+                ESP_LOGI(TAG, "Turning OFF the bypass relay (bypass type settings screen active)");
+            }
+        } else {
+            // If we're not in the bypass type settings screen, we want to
+            // turn on the relay so that output is muted.
+            if (current_bypass_relay_level != 1) {
+                gpio_set_level(BYPASS_RELAY_GPIO, 1); // Turn on relay
+                current_bypass_relay_level = 1;
+                ESP_LOGI(TAG, "Turning ON the bypass relay (bypass type settings screen NOT active)");
+            }
+        }
     }
 
     // Make sure the bypass type relay is in the correct state

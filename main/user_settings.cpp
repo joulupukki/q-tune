@@ -28,6 +28,7 @@ extern TunerController *tunerController;
 extern TunerGUIInterface available_guis[1]; // defined in tuner_gui_task.cpp
 extern size_t num_of_available_guis;
 extern QueueHandle_t bypassTypeQueue;
+extern QueueHandle_t bypassTypeSettingsScreenQeuue;
 
 #ifndef PROJECT_VERSION
 #define PROJECT_VERSION "0.0.1" // This gets set in the main CMakeLists.txt file
@@ -578,6 +579,11 @@ void UserSettings::removeCurrentMenu() {
     }
 
     lvgl_port_unlock();
+
+    // Go back into mute mode (in case the user was just in the bypass type
+    // settings screen).
+    bool bypassTypeSettingsScreen = false;
+    xQueueOverwrite(bypassTypeSettingsScreenQeuue, &bypassTypeSettingsScreen);
 }
 
 void UserSettings::createSlider(const char *sliderName, int32_t minRange, int32_t maxRange, lv_event_cb_t sliderCallback, float *sliderValue) {
@@ -998,6 +1004,12 @@ static void handleBypassTypeButtonClicked(lv_event_t *e) {
     }
     settings = (UserSettings *)lv_obj_get_user_data((lv_obj_t *)lv_event_get_target(e));
     lvgl_port_unlock();
+
+    // Indicate that we're going into the bypass type selection so that the
+    // tuner can unmute in gpio_task.
+    bool bypassTypeSettingsScreen = true;
+    xQueueOverwrite(bypassTypeSettingsScreenQeuue, &bypassTypeSettingsScreen);
+
     const char *buttonNames[] = {
         MENU_BTN_TRUE_BYPASS,
         MENU_BTN_BUFFERED_BYPASS,
@@ -1596,11 +1608,9 @@ void UserSettings::footswitchPressed(FootswitchPress press) {
     case footswitchLongPress:
         ESP_LOGI(TAG, "Settings: Long press");
         if (screenStack.size() > 2) {
-            ESP_LOGI(TAG, "0");
             saveSettings();
-            removeCurrentMenu();
+            removeCurrentMenu();            
         } else {
-            ESP_LOGI(TAG, "1");
             // saveSettings();
             tunerController->setState(tunerStateTuning);
         }

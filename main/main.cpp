@@ -46,6 +46,12 @@ QueueHandle_t frequencyQueue;
 /// Queue to keep track of the bypass type state.
 QueueHandle_t bypassTypeQueue;
 
+/// Use this to temporarily enable bypass mode when showing the bypass settings
+/// screen so people can hear the difference between true bypass and buffered
+/// bypass. The value passed is either a 0 (not in the bypass type settings
+/// screen) or a 1 (in the bypass type settings screen).
+QueueHandle_t bypassTypeSettingsScreenQeuue;
+
 /* GPIO PINS
 
 P3:
@@ -132,6 +138,13 @@ extern "C" void app_main() {
         ESP_LOGE(TAG, "Bypass Type Queue creation failed!");
     } else {
         ESP_LOGI(TAG, "Bypass Type Queue created successfully!");
+    }
+
+    bypassTypeSettingsScreenQeuue = xQueueCreate(1, sizeof(bool));
+    if (bypassTypeSettingsScreenQeuue == NULL) {
+        ESP_LOGE(TAG, "Bypass Type Settings Screen Queue creation failed!");
+    } else {
+        ESP_LOGI(TAG, "Bypass Type Settings Screen Queue created successfully!");
     }
 
     // Initialize NVS (Persistent Flash Storage for User Settings)
