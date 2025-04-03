@@ -215,10 +215,6 @@ void record_time_gui_display_frequency(float frequency, float target_frequency, 
             );
         }
 
-        // Rotate the record title image
-        lv_obj_set_style_transform_angle(record_time_title_img, record_time_rotation_current_pos * 10, 0);
-        lv_timer_handler(); // Hopefully prevent watchdog from firing
-
         // Move the arm according to how many cents off the note is. Normalize
         // the value in the range of what's available in the number of angles
         // for the arm.
@@ -228,6 +224,9 @@ void record_time_gui_display_frequency(float frequency, float target_frequency, 
         float angles_for_cents = angles_per_side * cents_percentage;
         float arm_rotation = RECORD_TIME_ARM_ZERO_ANGLE + angles_for_cents;
         lv_obj_set_style_transform_angle(record_time_arm_img, arm_rotation * 10, 0);
+        
+        // Rotate the record title image
+        lv_obj_set_style_transform_angle(record_time_title_img, record_time_rotation_current_pos * 10, 0);
 
         // Move the slider to represent the frequency
         lv_obj_align_to(record_time_slider, record_time_slider_container, LV_ALIGN_CENTER, 0, cents * -1);

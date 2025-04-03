@@ -42,6 +42,7 @@ CONFIG_STDATOMIC_S32C1I_SPIRAM_WORKAROUND=y
 
 CONFIG_LV_COLOR_MIX_ROUND_OFS=128
 CONFIG_LV_COLOR_CHROMA_KEY_HEX=0x00FF00
+CONFIG_LV_USE_CLIB_MALLOC=y
 
 # Enabling the following configurations can help increase the PCLK frequency in the case when
 # the Frame Buffer is allocated from the PSRAM and fetched by EDMA
