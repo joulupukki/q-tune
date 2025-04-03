@@ -224,7 +224,7 @@ void record_time_gui_display_frequency(float frequency, float target_frequency, 
         float angles_for_cents = angles_per_side * cents_percentage;
         float arm_rotation = RECORD_TIME_ARM_ZERO_ANGLE + angles_for_cents;
         lv_obj_set_style_transform_angle(record_time_arm_img, arm_rotation * 10, 0);
-        
+
         // Rotate the record title image
         lv_obj_set_style_transform_angle(record_time_title_img, record_time_rotation_current_pos * 10, 0);
 
@@ -457,10 +457,7 @@ void record_time_create_slider(lv_obj_t * parent) {
     lv_obj_set_style_bg_color(record_time_slider_container, lv_color_hex(RECORD_TIME_SLIDER_CONTAINER_COLOR), 0);
     lv_obj_set_style_border_width(record_time_slider_container, 2, 0);
     lv_palette_t palette = userSettings->noteNamePalette;
-    if (palette == LV_PALETTE_NONE) {
-        palette = LV_PALETTE_RED;
-    }
-    lv_obj_set_style_border_color(record_time_slider_container, lv_palette_main(palette), 0);
+    lv_obj_set_style_border_color(record_time_slider_container, palette == LV_PALETTE_NONE ? lv_color_white() : lv_palette_main(palette), 0);
     lv_obj_set_style_border_opa(record_time_slider_container, LV_OPA_0, 0);
     lv_obj_set_scrollbar_mode(record_time_slider_container, LV_SCROLLBAR_MODE_OFF);
     lv_obj_set_style_radius(record_time_slider_container, 2, 0);
