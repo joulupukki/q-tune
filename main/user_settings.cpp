@@ -29,6 +29,7 @@ extern TunerGUIInterface available_guis[1]; // defined in tuner_gui_task.cpp
 extern size_t num_of_available_guis;
 extern QueueHandle_t bypassTypeQueue;
 extern QueueHandle_t bypassTypeSettingsScreenQeuue;
+extern UserSettings *userSettings;
 
 #ifndef PROJECT_VERSION
 #define PROJECT_VERSION "0.0.1" // This gets set in the main CMakeLists.txt file
@@ -124,9 +125,11 @@ static void handleTunerModeSelected(lv_event_t *e);
 static void handleInTuneThresholdButtonClicked(lv_event_t *e);
 static void handleBypassTypeButtonClicked(lv_event_t *e);
 static void handleBypassTypeSelected(lv_event_t *e);
+static void handleDisableMonitoringChickenOutConfirmed(lv_event_t *e);
 static void handleMonitoringModeButtonClicked(lv_event_t *e);
 static void handleInTuneThresholdRadio(lv_event_t *e);
 static void handleMonitoringModeRadio(lv_event_t *e);
+static void handleEnableMonitoringChickenOutConfirmed(lv_event_t *e);
 
 static void handleDisplayButtonClicked(lv_event_t *e);
 static void handleBrightnessButtonClicked(lv_event_t *e);
@@ -501,7 +504,6 @@ void UserSettings::createMenu(const char *buttonNames[], const char *buttonSymbo
         }
         lv_obj_add_style(btn, &focusedButtonStyle, LV_STATE_FOCUSED);
         lv_obj_set_width(btn, lv_pct(buttonWidthPercentage));
-        lv_obj_set_user_data(btn, this);
         lv_obj_add_event_cb(btn, eventCallback, LV_EVENT_CLICKED, btn);
         label = lv_label_create(btn);
         lv_label_set_text_static(label, buttonName);
@@ -531,7 +533,6 @@ void UserSettings::createMenu(const char *buttonNames[], const char *buttonSymbo
         // We're on the top menu - include an exit button
         btn = lv_btn_create(scrollable);
         lv_obj_add_style(btn, &focusedButtonStyle, LV_STATE_FOCUSED);
-        lv_obj_set_user_data(btn, this);
         lv_obj_set_width(btn, lv_pct(buttonWidthPercentage));
         lv_obj_add_event_cb(btn, handleExitButtonClicked, LV_EVENT_CLICKED, btn);
         label = lv_label_create(btn);
@@ -543,7 +544,6 @@ void UserSettings::createMenu(const char *buttonNames[], const char *buttonSymbo
         // We're in a submenu - include a back button
         btn = lv_btn_create(scrollable);
         lv_obj_add_style(btn, &focusedButtonStyle, LV_STATE_FOCUSED);
-        lv_obj_set_user_data(btn, this);
         lv_obj_set_width(btn, lv_pct(buttonWidthPercentage));
         lv_obj_add_event_cb(btn, handleBackButtonClicked, LV_EVENT_CLICKED, btn);
         label = lv_label_create(btn);
@@ -619,7 +619,6 @@ void UserSettings::createSlider(const char *sliderName, int32_t minRange, int32_
     // Create a slider in the center of the display
     lv_obj_t *slider = lv_slider_create(scr);
     lv_obj_center(slider);
-    lv_obj_set_user_data(slider, this); // Send "this" as the user data of the slider
     lv_slider_set_value(slider, *sliderValue * 100, LV_ANIM_OFF);
     lv_obj_center(slider);
     lv_obj_add_event_cb(slider, sliderCallback, LV_EVENT_VALUE_CHANGED, sliderValue); // Send the slider value as the event user data
@@ -627,7 +626,6 @@ void UserSettings::createSlider(const char *sliderName, int32_t minRange, int32_
 
     // We're in a submenu - include a back button
     lv_obj_t *btn = lv_btn_create(scrollable);
-    lv_obj_set_user_data(btn, this);
     lv_obj_set_width(btn, lv_pct(100));
     lv_obj_add_event_cb(btn, handleBackButtonClicked, LV_EVENT_CLICKED, btn);
     label = lv_label_create(btn);
@@ -681,7 +679,6 @@ void UserSettings::createRadioList(const char *title,
     lv_obj_set_style_bg_color(cont1, lv_color_black(), 0); // Optional background color
     lv_obj_add_event_cb(cont1, radioCallback, LV_EVENT_CLICKED, (void *)radioValue);
     lv_obj_align(cont1, LV_ALIGN_CENTER, 0, 0);
-    lv_obj_set_user_data(cont1, this); // Pass UserSettings object to the event callback
 
     // lv_obj_t *scrollToItem = NULL;
     for (int i = 0; i < numOfItems; i++) {
@@ -714,7 +711,6 @@ void UserSettings::createRadioList(const char *title,
     lv_obj_t *btn = lv_btn_create(scr);
     lv_obj_add_style(btn, &focusedButtonStyle, LV_STATE_FOCUSED);
     lv_group_add_obj(group, btn);
-    lv_obj_set_user_data(btn, this);
     lv_obj_set_width(btn, lv_pct(100));
     lv_obj_add_event_cb(btn, handleBackButtonClicked, LV_EVENT_CLICKED, btn);
     label = lv_label_create(btn);
@@ -822,7 +818,6 @@ void UserSettings::createSpinbox(const char *title, uint32_t minRange, uint32_t 
     lv_obj_add_event_cb(btn, lv_spinbox_decrement_event_cb, LV_EVENT_ALL, spinboxValue);
 
     btn = lv_btn_create(scr);
-    lv_obj_set_user_data(btn, this);
     lv_obj_set_width(btn, lv_pct(100));
     lv_obj_add_event_cb(btn, handleBackButtonClicked, LV_EVENT_CLICKED, btn);
     label = lv_label_create(btn);
@@ -899,7 +894,6 @@ static void handleTunerButtonClicked(lv_event_t *e) {
     if (!lvgl_port_lock(0)) {
         return;
     }
-    settings = (UserSettings *)lv_obj_get_user_data((lv_obj_t *)lv_event_get_target(e));
     lvgl_port_unlock();
     const char *buttonNames[] = {
         MENU_BTN_TUNER_MODE,
@@ -913,16 +907,14 @@ static void handleTunerButtonClicked(lv_event_t *e) {
         handleBypassTypeButtonClicked,
         handleMonitoringModeButtonClicked,
     };
-    settings->createMenu(buttonNames, NULL, NULL, callbackFunctions, 4);    
+    userSettings->createMenu(buttonNames, NULL, NULL, callbackFunctions, 4);    
 }
 
 static void handleTunerModeButtonClicked(lv_event_t *e) {
     ESP_LOGI(TAG, "Tuner mode button clicked");
-    UserSettings *settings;
     if (!lvgl_port_lock(0)) {
         return;
     }
-    settings = (UserSettings *)lv_obj_get_user_data((lv_obj_t *)lv_event_get_target(e));
     lvgl_port_unlock();
 
     const char **buttonNames = (const char **)malloc(sizeof(const char *) * num_of_available_guis);
@@ -931,12 +923,12 @@ static void handleTunerModeButtonClicked(lv_event_t *e) {
         buttonNames[i] = available_guis[i].get_name();
     }
 
-    settings->createRadioList((const char *)MENU_BTN_TUNER_MODE, 
+    userSettings->createRadioList((const char *)MENU_BTN_TUNER_MODE, 
                                buttonNames,
                                num_of_available_guis,
                                NULL,
                                handleTunerModeSelected,
-                               &settings->tunerGUIIndex,
+                               &userSettings->tunerGUIIndex,
                                0); // This setting is 0-based
 
     free(buttonNames);
@@ -958,8 +950,8 @@ static void handleTunerModeSelected(lv_event_t *e) {
     // Do nothing if the container was clicked
     if(act_cb == cont) return;
 
-    lv_obj_remove_state(old_cb, LV_STATE_CHECKED);   /*Uncheck the previous radio button*/
-    lv_obj_add_state(act_cb, LV_STATE_CHECKED);     /*Uncheck the current radio button*/
+    lv_obj_remove_state(old_cb, LV_STATE_CHECKED);   // Uncheck the previous radio button
+    lv_obj_add_state(act_cb, LV_STATE_CHECKED);     // Uncheck the current radio button
 
     for (int i = 0; i < num_of_available_guis; i++) {
         if (strcmp(available_guis[i].get_name(), button_text) == 0) {
@@ -973,11 +965,9 @@ static void handleTunerModeSelected(lv_event_t *e) {
 
 static void handleInTuneThresholdButtonClicked(lv_event_t *e) {
     ESP_LOGI(TAG, "In Tune Threshold button clicked");
-    UserSettings *settings;
     if (!lvgl_port_lock(0)) {
         return;
     }
-    settings = (UserSettings *)lv_obj_get_user_data((lv_obj_t *)lv_event_get_target(e));
     lvgl_port_unlock();
     const char *buttonNames[] = {
         "+/- 1 cent",
@@ -987,22 +977,20 @@ static void handleInTuneThresholdButtonClicked(lv_event_t *e) {
         "+/- 5 cents",
         "+/- 6 cents"
     };
-    settings->createRadioList((const char *)MENU_BTN_IN_TUNE_THRESHOLD, 
+    userSettings->createRadioList((const char *)MENU_BTN_IN_TUNE_THRESHOLD, 
                                buttonNames,
                                sizeof(buttonNames) / sizeof(buttonNames[0]),
                                NULL,
                                handleInTuneThresholdRadio,
-                               &settings->inTuneCentsWidth,
+                               &userSettings->inTuneCentsWidth,
                                1); // this setting is 1-based instead of 0-based
 }
 
 static void handleBypassTypeButtonClicked(lv_event_t *e) {
     ESP_LOGI(TAG, "Bypass type clicked");
-    UserSettings *settings;
     if (!lvgl_port_lock(0)) {
         return;
     }
-    settings = (UserSettings *)lv_obj_get_user_data((lv_obj_t *)lv_event_get_target(e));
     lvgl_port_unlock();
 
     // Indicate that we're going into the bypass type selection so that the
@@ -1014,12 +1002,12 @@ static void handleBypassTypeButtonClicked(lv_event_t *e) {
         MENU_BTN_TRUE_BYPASS,
         MENU_BTN_BUFFERED_BYPASS,
     };
-    settings->createRadioList((const char *)MENU_BTN_BYPASS_TYPE, 
+    userSettings->createRadioList((const char *)MENU_BTN_BYPASS_TYPE, 
                                buttonNames,
                                sizeof(buttonNames) / sizeof(buttonNames[0]),
                                NULL,
                                handleBypassTypeSelected,
-                               (uint8_t *)&settings->bypassType,
+                               (uint8_t *)&userSettings->bypassType,
                                0); // a 0-based setting
 }
 
@@ -1038,37 +1026,110 @@ static void handleBypassTypeSelected(lv_event_t *e) {
     // Do nothing if the container was clicked
     if(act_cb == cont) return;
 
-    lv_obj_remove_state(old_cb, LV_STATE_CHECKED);   /*Uncheck the previous radio button*/
-    lv_obj_add_state(act_cb, LV_STATE_CHECKED);     /*Uncheck the current radio button*/
+    // If monitoring is enabled, let the user know that switching to true bypass
+    // mode will disable that and then let them choose what to do.
+    int32_t new_index = lv_obj_get_index(act_cb);
+    if (new_index == 0 && userSettings->monitoringMode == 1) {
+        lv_group_t *group = lv_group_create();
+        lv_group_set_wrap(group, true);
+        lv_group_set_default(group);
+    
+        lv_obj_t * mbox = lv_msgbox_create(lv_scr_act());
+        lv_obj_set_style_pad_all(mbox, 10, 0);           // Add padding for aesthetics
+        lv_msgbox_add_title(mbox, "Monitoring Mode is On");
+        lv_msgbox_add_text(mbox, "Turn off monitoring mode and switch to true bypass?");
+        lv_obj_t *btn = lv_msgbox_add_footer_button(mbox, "Cancel");
+        lv_group_add_obj(group, btn);
+        lv_obj_add_style(btn, &userSettings->focusedButtonStyle, LV_STATE_FOCUSED);
+        lv_obj_add_event_cb(btn, [](lv_event_t *e) {
+            if (!lvgl_port_lock(0)) {
+                return;
+            }
+            lv_obj_t *mbox = (lv_obj_t *)lv_event_get_user_data(e);
+            lv_obj_del(mbox); // closes the mbox
+    
+            // Restore the default group so the menu can be navigated again
+            lv_group_t *group = find_group_in_parent(lv_scr_act());
+            if (group != NULL) {
+                lv_group_set_default(group);
+            }
+    
+            lvgl_port_unlock();
+        }, LV_EVENT_CLICKED, mbox);
+        btn = lv_msgbox_add_footer_button(mbox, "Yes");
+        lv_group_add_obj(group, btn);
+        lv_obj_add_style(btn, &userSettings->focusedButtonStyle, LV_STATE_FOCUSED);
+        lv_obj_set_user_data(btn, mbox);
+        lv_obj_set_style_bg_color(btn, lv_palette_main(LV_PALETTE_RED), 0);
+        lv_obj_add_event_cb(btn, handleDisableMonitoringChickenOutConfirmed, LV_EVENT_CLICKED, NULL);
+    
+        lv_obj_center(mbox);
+    } else {
+        lv_obj_remove_state(old_cb, LV_STATE_CHECKED);   // Uncheck the previous radio button
+        lv_obj_add_state(act_cb, LV_STATE_CHECKED);     // Uncheck the current radio button
+    
+        *bypassTypeSetting = new_index;
+        ESP_LOGI(TAG, "New Bypass Type setting: %d", *bypassTypeSetting);
+    
+        // Make sure the queue is updated with the new bypass type. This will allow
+        // the gpio_task to update the actual GPIO to high or low state.
+        xQueueOverwrite(bypassTypeQueue, bypassTypeSetting);
+    }
 
-    *bypassTypeSetting = lv_obj_get_index(act_cb);
-    ESP_LOGI(TAG, "New Bypass Type setting: %d", *bypassTypeSetting);
+    lvgl_port_unlock();
+}
+
+static void handleDisableMonitoringChickenOutConfirmed(lv_event_t *e) {
+    if (!lvgl_port_lock(0)) {
+        return;
+    }
+    lv_obj_t *mbox = (lv_obj_t *)lv_obj_get_user_data((lv_obj_t *)lv_event_get_target(e));
+
+    // Handle factory reset logic here
+    ESP_LOGI(TAG, "Turning off monitoring mode and switching to true bypass");
+
+    userSettings->bypassType = tunerBypassTypeTrue;
+    userSettings->monitoringMode = 0;
 
     // Make sure the queue is updated with the new bypass type. This will allow
     // the gpio_task to update the actual GPIO to high or low state.
-    xQueueOverwrite(bypassTypeQueue, bypassTypeSetting);
+    xQueueOverwrite(bypassTypeQueue, &userSettings->bypassType);
+
+    // Close the message box
+    lv_obj_del(mbox);
+
+    // Update the radio button to show the new state.
+    lv_group_t *group = find_group_in_parent(lv_scr_act());
+    if (group != NULL) {
+        lv_group_set_default(group);
+    }
+
+    lv_obj_t * cont = (lv_obj_t *)lv_obj_get_child(lv_scr_act(), 1);
+    lv_obj_t * true_bypass_button = (lv_obj_t *)lv_obj_get_child(cont, 0);
+    lv_obj_t * buffered_bypass_button = (lv_obj_t *)lv_obj_get_child(cont, 1);
+
+    lv_obj_remove_state(buffered_bypass_button, LV_STATE_CHECKED);
+    lv_obj_add_state(true_bypass_button, LV_STATE_CHECKED);
 
     lvgl_port_unlock();
 }
 
 static void handleMonitoringModeButtonClicked(lv_event_t *e) {
     ESP_LOGI(TAG, "Monitoring mode clicked");
-    UserSettings *settings;
     if (!lvgl_port_lock(0)) {
         return;
     }
-    settings = (UserSettings *)lv_obj_get_user_data((lv_obj_t *)lv_event_get_target(e));
     lvgl_port_unlock();
     const char *buttonNames[] = {
         MENU_BTN_MONITORING_OFF,
         MENU_BTN_MONITORING_ON,
     };
-    settings->createRadioList((const char *)MENU_BTN_MONITORING_MODE, 
+    userSettings->createRadioList((const char *)MENU_BTN_MONITORING_MODE, 
                                buttonNames,
                                sizeof(buttonNames) / sizeof(buttonNames[0]),
                                NULL,
                                handleMonitoringModeRadio,
-                               &settings->monitoringMode,
+                               &userSettings->monitoringMode,
                                0); // a 0-based setting
 }
 
@@ -1090,8 +1151,8 @@ static void handleInTuneThresholdRadio(lv_event_t *e) {
     // Do nothing if the container was clicked
     if(act_cb == cont) return;
 
-    lv_obj_remove_state(old_cb, LV_STATE_CHECKED);   /*Uncheck the previous radio button*/
-    lv_obj_add_state(act_cb, LV_STATE_CHECKED);     /*Uncheck the current radio button*/
+    lv_obj_remove_state(old_cb, LV_STATE_CHECKED);   // Uncheck the previous radio button
+    lv_obj_add_state(act_cb, LV_STATE_CHECKED);     // Uncheck the current radio button
 
     *thresholdSetting = lv_obj_get_index(act_cb) + 1; // Adjust before storing into settings for 1-based values
     ESP_LOGI(TAG, "New In Tune Threshold setting: %d", *thresholdSetting);
@@ -1114,22 +1175,96 @@ static void handleMonitoringModeRadio(lv_event_t *e) {
     // Do nothing if the container was clicked
     if(act_cb == cont) return;
 
-    lv_obj_remove_state(old_cb, LV_STATE_CHECKED);   /*Uncheck the previous radio button*/
-    lv_obj_add_state(act_cb, LV_STATE_CHECKED);     /*Uncheck the current radio button*/
+    // If the user is turning monitoring mode on, check to see if buffered
+    // bypass is enabled. If it's not, show a chicken out that will
+    // automatically turn buffered bypass on and monitoring on.
+    int32_t new_index = lv_obj_get_index(act_cb);
+    if (new_index == 1 && userSettings->bypassType != tunerBypassTypeBuffered) {
+        lv_group_t *group = lv_group_create();
+        lv_group_set_wrap(group, true);
+        lv_group_set_default(group);
+    
+        lv_obj_t * mbox = lv_msgbox_create(lv_scr_act());
+        lv_obj_set_style_pad_all(mbox, 10, 0);           // Add padding for aesthetics
+        lv_msgbox_add_title(mbox, "Buffered Bypass Required");
+        lv_msgbox_add_text(mbox, "Use buffered bypass and turn on monitoring?");
+        lv_obj_t *btn = lv_msgbox_add_footer_button(mbox, "Cancel");
+        lv_group_add_obj(group, btn);
+        lv_obj_add_style(btn, &userSettings->focusedButtonStyle, LV_STATE_FOCUSED);
+        lv_obj_add_event_cb(btn, [](lv_event_t *e) {
+            if (!lvgl_port_lock(0)) {
+                return;
+            }
+            lv_obj_t *mbox = (lv_obj_t *)lv_event_get_user_data(e);
+            lv_obj_del(mbox); // closes the mbox
+    
+            // Restore the default group so the menu can be navigated again
+            lv_group_t *group = find_group_in_parent(lv_scr_act());
+            if (group != NULL) {
+                lv_group_set_default(group);
+            }
+    
+            lvgl_port_unlock();
+        }, LV_EVENT_CLICKED, mbox);
+        btn = lv_msgbox_add_footer_button(mbox, "Yes");
+        lv_group_add_obj(group, btn);
+        lv_obj_add_style(btn, &userSettings->focusedButtonStyle, LV_STATE_FOCUSED);
+        lv_obj_set_user_data(btn, mbox);
+        lv_obj_set_style_bg_color(btn, lv_palette_main(LV_PALETTE_RED), 0);
+        lv_obj_add_event_cb(btn, handleEnableMonitoringChickenOutConfirmed, LV_EVENT_CLICKED, NULL);
+    
+        lv_obj_center(mbox);
+    } else {
+        lv_obj_remove_state(old_cb, LV_STATE_CHECKED);   // Uncheck the previous radio button
+        lv_obj_add_state(act_cb, LV_STATE_CHECKED);     // Uncheck the current radio button
+    
+        *monitoringSetting = new_index;
+        ESP_LOGI(TAG, "New Monitoring Mode setting: %d", *monitoringSetting);
+    }
 
-    *monitoringSetting = lv_obj_get_index(act_cb);
-    ESP_LOGI(TAG, "New Monitoring Mode setting: %d", *monitoringSetting);
+    lvgl_port_unlock();
+}
+
+static void handleEnableMonitoringChickenOutConfirmed(lv_event_t *e) {
+    if (!lvgl_port_lock(0)) {
+        return;
+    }
+    lv_obj_t *mbox = (lv_obj_t *)lv_obj_get_user_data((lv_obj_t *)lv_event_get_target(e));
+
+    // Handle factory reset logic here
+    ESP_LOGI(TAG, "Turning on monitoring mode and buffered bypass");
+
+    userSettings->bypassType = tunerBypassTypeBuffered;
+    userSettings->monitoringMode = 1;
+
+    // Make sure the queue is updated with the new bypass type. This will allow
+    // the gpio_task to update the actual GPIO to high or low state.
+    xQueueOverwrite(bypassTypeQueue, &userSettings->bypassType);
+
+    // Close the message box
+    lv_obj_del(mbox);
+
+    // Update the radio button to show the new state.
+    lv_group_t *group = find_group_in_parent(lv_scr_act());
+    if (group != NULL) {
+        lv_group_set_default(group);
+    }
+
+    lv_obj_t * cont = (lv_obj_t *)lv_obj_get_child(lv_scr_act(), 1);
+    lv_obj_t * off_button = (lv_obj_t *)lv_obj_get_child(cont, 0);
+    lv_obj_t * on_button = (lv_obj_t *)lv_obj_get_child(cont, 1);
+
+    lv_obj_remove_state(off_button, LV_STATE_CHECKED);   // Uncheck the previous radio button
+    lv_obj_add_state(on_button, LV_STATE_CHECKED);     // Uncheck the current radio button
 
     lvgl_port_unlock();
 }
 
 static void handleDisplayButtonClicked(lv_event_t *e) {
     ESP_LOGI(TAG, "Display button clicked");
-    UserSettings *settings;
     if (!lvgl_port_lock(0)) {
         return;
     }
-    settings = (UserSettings *)lv_obj_get_user_data((lv_obj_t *)lv_event_get_target(e));
     lvgl_port_unlock();
     const char *buttonNames[] = {
         MENU_BTN_BRIGHTNESS,
@@ -1143,16 +1278,14 @@ static void handleDisplayButtonClicked(lv_event_t *e) {
         handleInitialScreenButtonClicked,
         handleRotationButtonClicked,
     };
-    settings->createMenu(buttonNames, NULL, NULL, callbackFunctions, 4);
+    userSettings->createMenu(buttonNames, NULL, NULL, callbackFunctions, 4);
 }
 
 static void handleBrightnessButtonClicked(lv_event_t *e) {
     ESP_LOGI(TAG, "Brightness button clicked");
-    UserSettings *settings;
     if (!lvgl_port_lock(0)) {
         return;
     }
-    settings = (UserSettings *)lv_obj_get_user_data((lv_obj_t *)lv_event_get_target(e));
     lvgl_port_unlock();
     const char *buttonNames[] = {
         "10%",
@@ -1166,12 +1299,12 @@ static void handleBrightnessButtonClicked(lv_event_t *e) {
         "90%",
         "100%",
     };
-    settings->createRadioList((const char *)MENU_BTN_BRIGHTNESS, 
+    userSettings->createRadioList((const char *)MENU_BTN_BRIGHTNESS, 
                                buttonNames,
                                sizeof(buttonNames) / sizeof(buttonNames[0]),
                                NULL,
                                handleBrightnessSelected,
-                               &settings->displayBrightness,
+                               &userSettings->displayBrightness,
                                0); // a 0-based setting
 
 }
@@ -1193,8 +1326,8 @@ static void handleBrightnessSelected(lv_event_t *e) {
     // Do nothing if the container was clicked
     if(act_cb == cont) return;
 
-    lv_obj_remove_state(old_cb, LV_STATE_CHECKED);   /*Uncheck the previous radio button*/
-    lv_obj_add_state(act_cb, LV_STATE_CHECKED);     /*Uncheck the current radio button*/
+    lv_obj_remove_state(old_cb, LV_STATE_CHECKED);   // Uncheck the previous radio button
+    lv_obj_add_state(act_cb, LV_STATE_CHECKED);     // Uncheck the current radio button
 
     int32_t newIndex = lv_obj_get_index(act_cb);
     float brightnessValue = (float)newIndex * 10 + 10;
@@ -1208,11 +1341,9 @@ static void handleBrightnessSelected(lv_event_t *e) {
 }
 
 static void handleNoteColorButtonClicked(lv_event_t *e) {
-    UserSettings *settings;
     if (!lvgl_port_lock(0)) {
         return;
     }
-    settings = (UserSettings *)lv_obj_get_user_data((lv_obj_t *)lv_event_get_target(e));
     lvgl_port_unlock();
     const char *buttonNames[] = {
         "White", // Default
@@ -1234,13 +1365,13 @@ static void handleNoteColorButtonClicked(lv_event_t *e) {
         LV_PALETTE_ORANGE,
         LV_PALETTE_YELLOW,
     };
-    settings->currentSettingIndex = settingIndexForPalette(settings->noteNamePalette);
-    settings->createRadioList((const char *)MENU_BTN_NOTE_COLOR, 
+    userSettings->currentSettingIndex = settingIndexForPalette(userSettings->noteNamePalette);
+    userSettings->createRadioList((const char *)MENU_BTN_NOTE_COLOR, 
                                buttonNames,
                                sizeof(buttonNames) / sizeof(buttonNames[0]),
                                buttonColors,
                                handleNoteColorSelected,
-                               &settings->currentSettingIndex,
+                               &userSettings->currentSettingIndex,
                                0); // a 0-based setting
 }
 
@@ -1292,14 +1423,12 @@ static uint8_t settingIndexForPalette(lv_palette_t palette) {
 
 static void handleNoteColorSelected(lv_event_t *e) {
     ESP_LOGI(TAG, "Note Color Selection changed");
-    UserSettings *settings;
     if (!lvgl_port_lock(0)) {
         return;
     }
     lv_obj_t * cont = (lv_obj_t *)lv_event_get_current_target(e);
-    settings = (UserSettings *)lv_obj_get_user_data(cont);
 
-    int32_t radioIndex = ((int32_t)settings->currentSettingIndex);
+    int32_t radioIndex = ((int32_t)userSettings->currentSettingIndex);
     if (radioIndex < 0) {
         radioIndex = 0;
     }
@@ -1310,35 +1439,33 @@ static void handleNoteColorSelected(lv_event_t *e) {
     // Do nothing if the container was clicked
     if(act_cb == cont) return;
 
-    lv_obj_remove_state(old_cb, LV_STATE_CHECKED);   /*Uncheck the previous radio button*/
-    lv_obj_add_state(act_cb, LV_STATE_CHECKED);     /*Uncheck the current radio button*/
+    lv_obj_remove_state(old_cb, LV_STATE_CHECKED);   // Uncheck the previous radio button
+    lv_obj_add_state(act_cb, LV_STATE_CHECKED);     // Uncheck the current radio button
 
     int32_t newIndex = lv_obj_get_index(act_cb);
     lv_palette_t palette = paletteForSettingIndex(newIndex);
-    settings->noteNamePalette = palette;
+    userSettings->noteNamePalette = palette;
 
     lvgl_port_unlock();
 }
 
 static void handleInitialScreenButtonClicked(lv_event_t *e) {
     ESP_LOGI(TAG, "Initial screen button clicked");
-    UserSettings *settings;
     if (!lvgl_port_lock(0)) {
         return;
     }
-    settings = (UserSettings *)lv_obj_get_user_data((lv_obj_t *)lv_event_get_target(e));
     lvgl_port_unlock();
     const char *buttonNames[] = {
         MENU_BTN_STANDBY,
         MENU_BTN_TUNING,
     };
-    settings->currentSettingIndex = settingIndexForPalette(settings->noteNamePalette);
-    settings->createRadioList((const char *)MENU_BTN_INITIAL_SCREEN, 
+    userSettings->currentSettingIndex = settingIndexForPalette(userSettings->noteNamePalette);
+    userSettings->createRadioList((const char *)MENU_BTN_INITIAL_SCREEN, 
                                buttonNames,
                                sizeof(buttonNames) / sizeof(buttonNames[0]),
                                NULL,
                                handleInitialStateSelected,
-                               (uint8_t *)&settings->initialState,
+                               (uint8_t *)&userSettings->initialState,
                                1); // a 1-based setting
 }
 
@@ -1361,8 +1488,8 @@ static void handleInitialStateSelected(lv_event_t *e) {
     // Do nothing if the container was clicked
     if(act_cb == cont) return;
 
-    lv_obj_remove_state(old_cb, LV_STATE_CHECKED);   /*Uncheck the previous radio button*/
-    lv_obj_add_state(act_cb, LV_STATE_CHECKED);     /*Uncheck the current radio button*/
+    lv_obj_remove_state(old_cb, LV_STATE_CHECKED);   // Uncheck the previous radio button
+    lv_obj_add_state(act_cb, LV_STATE_CHECKED);     // Uncheck the current radio button
 
     *initialStateSetting = lv_obj_get_index(act_cb) + 1; // Adjust before storing into settings for 1-based values
     ESP_LOGI(TAG, "New initial screen setting: %d", *initialStateSetting);
@@ -1372,11 +1499,9 @@ static void handleInitialStateSelected(lv_event_t *e) {
 
 static void handleRotationButtonClicked(lv_event_t *e) {
     ESP_LOGI(TAG, "Rotation button clicked");
-    UserSettings *settings;
     if (!lvgl_port_lock(0)) {
         return;
     }
-    settings = (UserSettings *)lv_obj_get_user_data((lv_obj_t *)lv_event_get_target(e));
     lvgl_port_unlock();
     const char *buttonNames[] = {
         MENU_BTN_ROTATION_NORMAL,
@@ -1385,18 +1510,17 @@ static void handleRotationButtonClicked(lv_event_t *e) {
         MENU_BTN_ROTATION_UPSIDE_DN,
     };
     
-    settings->createRadioList((const char *)MENU_BTN_ROTATION, 
+    userSettings->createRadioList((const char *)MENU_BTN_ROTATION, 
                                buttonNames,
                                sizeof(buttonNames) / sizeof(buttonNames[0]),
                                NULL,
                                handleRotationSelected,
-                               (uint8_t *)&settings->displayOrientation,
+                               (uint8_t *)&userSettings->displayOrientation,
                                0); // a 0-based setting
 }
 
 static void handleRotationSelected(lv_event_t *e) {
     ESP_LOGI(TAG, "Rotation option selected");
-    UserSettings *settings;
     if (!lvgl_port_lock(0)) {
         return;
     }
@@ -1408,30 +1532,27 @@ static void handleRotationSelected(lv_event_t *e) {
     }
 
     lv_obj_t * cont = (lv_obj_t *)lv_event_get_current_target(e);
-    settings = (UserSettings *)lv_obj_get_user_data(cont);
     lv_obj_t * act_cb = (lv_obj_t *)lv_event_get_target(e);
     lv_obj_t * old_cb = (lv_obj_t *)lv_obj_get_child(cont, radioIndex);
 
     // Do nothing if the container was clicked
     if(act_cb == cont) return;
 
-    lv_obj_remove_state(old_cb, LV_STATE_CHECKED);   /*Uncheck the previous radio button*/
-    lv_obj_add_state(act_cb, LV_STATE_CHECKED);     /*Uncheck the current radio button*/
+    lv_obj_remove_state(old_cb, LV_STATE_CHECKED);   // Uncheck the previous radio button
+    lv_obj_add_state(act_cb, LV_STATE_CHECKED);     // Uncheck the current radio button
 
     lvgl_port_unlock();
 
     *rotationSetting = lv_obj_get_index(act_cb);
 
     // If the rotation is successful, it's saved in the settings
-    settings->rotateScreenTo((TunerOrientation)*rotationSetting);
+    userSettings->rotateScreenTo((TunerOrientation)*rotationSetting);
 }
 
 static void handleDebugButtonClicked(lv_event_t *e) {
-    UserSettings *settings;
     if (!lvgl_port_lock(0)) {
         return;
     }
-    settings = (UserSettings *)lv_obj_get_user_data((lv_obj_t *)lv_event_get_target(e));
     lvgl_port_unlock();
 
     const char *buttonNames[] = {
@@ -1446,66 +1567,45 @@ static void handleDebugButtonClicked(lv_event_t *e) {
         handleNameDebouncingButtonClicked,
         // handleMovingAvgButtonClicked,
     };
-    settings->createMenu(buttonNames, NULL, NULL, callbackFunctions, 3);
+    userSettings->createMenu(buttonNames, NULL, NULL, callbackFunctions, 3);
 }
 
 static void handleExpSmoothingButtonClicked(lv_event_t *e) {
-    UserSettings *settings;
     if (!lvgl_port_lock(0)) {
         return;
     }
-    settings = (UserSettings *)lv_obj_get_user_data((lv_obj_t *)lv_event_get_target(e));
     lvgl_port_unlock();
-    settings->createSpinbox(MENU_BTN_EXP_SMOOTHING, 0, 100, 3, 1, &settings->expSmoothing, 0.01);
+    userSettings->createSpinbox(MENU_BTN_EXP_SMOOTHING, 0, 100, 3, 1, &userSettings->expSmoothing, 0.01);
 }
 
 static void handle1EUBetaButtonClicked(lv_event_t *e) {
-    UserSettings *settings;
     if (!lvgl_port_lock(0)) {
         return;
     }
-    settings = (UserSettings *)lv_obj_get_user_data((lv_obj_t *)lv_event_get_target(e));
     lvgl_port_unlock();
-    ESP_LOGI(TAG, "Opening 1EU Spinbox with %f", settings->oneEUBeta);
-    settings->createSpinbox(MENU_BTN_1EU_BETA, 0, 1000, 4, 1, &settings->oneEUBeta, 0.001);
+    ESP_LOGI(TAG, "Opening 1EU Spinbox with %f", userSettings->oneEUBeta);
+    userSettings->createSpinbox(MENU_BTN_1EU_BETA, 0, 1000, 4, 1, &userSettings->oneEUBeta, 0.001);
 }
 
 static void handle1EUFilterFirstButtonClicked(lv_event_t *e) {
-    UserSettings *settings;
     if (!lvgl_port_lock(0)) {
         return;
     }
-    settings = (UserSettings *)lv_obj_get_user_data((lv_obj_t *)lv_event_get_target(e));
     lvgl_port_unlock();
-
 }
 
-// static void handleMovingAvgButtonClicked(lv_event_t *e) {
-//     UserSettings *settings;
-//     if (!lvgl_port_lock(0)) {
-//         return;
-//     }
-//     settings = (UserSettings *)lv_obj_get_user_data((lv_obj_t *)lv_event_get_target(e));
-//     lvgl_port_unlock();
-//     settings->createSpinbox(MENU_BTN_MOVING_AVG, 1, 1000, 4, 4, &settings->movingAvgWindow, 1);
-// }
-
 static void handleNameDebouncingButtonClicked(lv_event_t *e) {
-    UserSettings *settings;
     if (!lvgl_port_lock(0)) {
         return;
     }
-    settings = (UserSettings *)lv_obj_get_user_data((lv_obj_t *)lv_event_get_target(e));
     lvgl_port_unlock();
-    settings->createSpinbox(MENU_BTN_NAME_DEBOUNCING, 100, 500, 3, 3, &settings->noteDebounceInterval, 1);
+    userSettings->createSpinbox(MENU_BTN_NAME_DEBOUNCING, 100, 500, 3, 3, &userSettings->noteDebounceInterval, 1);
 }
 
 static void handleAboutButtonClicked(lv_event_t *e) {
-    UserSettings *settings;
     if (!lvgl_port_lock(0)) {
         return;
     }
-    settings = (UserSettings *)lv_obj_get_user_data((lv_obj_t *)lv_event_get_target(e));
     lvgl_port_unlock();
     static char versionString[32];
     sprintf(versionString, "Version %s", PROJECT_VERSION);
@@ -1517,20 +1617,18 @@ static void handleAboutButtonClicked(lv_event_t *e) {
         handleBackButtonClicked,
         handleFactoryResetButtonClicked,
     };
-    settings->createMenu(buttonNames, NULL, NULL, callbackFunctions, 2);
+    userSettings->createMenu(buttonNames, NULL, NULL, callbackFunctions, 2);
 }
 
 static void handleFactoryResetChickenOutConfirmed(lv_event_t *e) {
-    UserSettings *settings;
     if (!lvgl_port_lock(0)) {
         return;
     }
     lv_obj_t *mbox = (lv_obj_t *)lv_obj_get_user_data((lv_obj_t *)lv_event_get_target(e));
-    settings = (UserSettings *)lv_event_get_user_data(e);
 
     // Handle factory reset logic here
     ESP_LOGI(TAG, "Factory Reset initiated!");
-    settings->restoreDefaultSettings();
+    userSettings->restoreDefaultSettings();
 
     // Close the message box
     lv_obj_del(mbox);
@@ -1539,11 +1637,9 @@ static void handleFactoryResetChickenOutConfirmed(lv_event_t *e) {
 }
 
 static void handleFactoryResetButtonClicked(lv_event_t *e) {
-    UserSettings *settings;
     if (!lvgl_port_lock(0)) {
         return;
     }
-    settings = (UserSettings *)lv_obj_get_user_data((lv_obj_t *)lv_event_get_target(e));
     
     lv_group_t *group = lv_group_create();
     lv_group_set_wrap(group, true);
@@ -1555,7 +1651,7 @@ static void handleFactoryResetButtonClicked(lv_event_t *e) {
     lv_msgbox_add_text(mbox, "Reset to factory defaults?");
     lv_obj_t *btn = lv_msgbox_add_footer_button(mbox, "Cancel");
     lv_group_add_obj(group, btn);
-    lv_obj_add_style(btn, &settings->focusedButtonStyle, LV_STATE_FOCUSED);
+    lv_obj_add_style(btn, &userSettings->focusedButtonStyle, LV_STATE_FOCUSED);
     lv_obj_add_event_cb(btn, [](lv_event_t *e) {
         if (!lvgl_port_lock(0)) {
             return;
@@ -1573,10 +1669,10 @@ static void handleFactoryResetButtonClicked(lv_event_t *e) {
     }, LV_EVENT_CLICKED, mbox);
     btn = lv_msgbox_add_footer_button(mbox, "Reset");
     lv_group_add_obj(group, btn);
-    lv_obj_add_style(btn, &settings->focusedButtonStyle, LV_STATE_FOCUSED);
+    lv_obj_add_style(btn, &userSettings->focusedButtonStyle, LV_STATE_FOCUSED);
     lv_obj_set_user_data(btn, mbox);
     lv_obj_set_style_bg_color(btn, lv_palette_main(LV_PALETTE_RED), 0);
-    lv_obj_add_event_cb(btn, handleFactoryResetChickenOutConfirmed, LV_EVENT_CLICKED, settings);
+    lv_obj_add_event_cb(btn, handleFactoryResetChickenOutConfirmed, LV_EVENT_CLICKED, NULL);
 
     lv_obj_center(mbox);
 
@@ -1585,14 +1681,12 @@ static void handleFactoryResetButtonClicked(lv_event_t *e) {
 
 static void handleBackButtonClicked(lv_event_t *e) {
     ESP_LOGI(TAG, "Back button clicked");
-    UserSettings *settings;
     if (!lvgl_port_lock(0)) {
         return;
     }
-    settings = (UserSettings *)lv_obj_get_user_data((lv_obj_t *)lv_event_get_target(e));
     lvgl_port_unlock();
-    settings->saveSettings(); // TODO: Figure out a better way of doing this than saving every time
-    settings->removeCurrentMenu();
+    userSettings->saveSettings(); // TODO: Figure out a better way of doing this than saving every time
+    userSettings->removeCurrentMenu();
 }
 
 void UserSettings::footswitchPressed(FootswitchPress press) {
