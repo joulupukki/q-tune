@@ -271,13 +271,22 @@ void UserSettings::loadSettings() {
     ESP_LOGI(TAG, "Display Brightness: %d", displayBrightness);
 }
 
-void UserSettings::advanceToNextButton() {
+void UserSettings::moveToNextButton() {
     lv_group_t *group = lv_group_get_default();
     if (group == NULL) {
-        ESP_LOGI(TAG, "advanceToNextButton - group is NULL");
+        ESP_LOGI(TAG, "moveToNextButton - group is NULL");
         return;
     }
     lv_group_focus_next(group);
+}
+
+void UserSettings::moveToPreviousButton() {
+    lv_group_t *group = lv_group_get_default();
+    if (group == NULL) {
+        ESP_LOGI(TAG, "moveToPreviousButton - group is NULL");
+        return;
+    }
+    lv_group_focus_prev(group);
 }
 
 void UserSettings::pressFocusedButton() {
@@ -576,6 +585,22 @@ void UserSettings::removeCurrentMenu() {
     lv_group_t *group = find_group_in_parent(parentScreen);
     if (group != NULL) {
         lv_group_set_default(group);
+
+        // Put focus on the Back button as a convenience
+        lv_obj_t *button = lv_group_get_focused(group);
+        if (button) {
+            // Get the last child of the parent
+            lv_obj_t *parent = lv_obj_get_parent(button);
+            if (parent) {
+                uint32_t child_count = lv_obj_get_child_count(parent);
+                if (child_count > 0) {
+                    lv_obj_t *lastChild = lv_obj_get_child(parent, child_count - 1);
+                    if (lastChild) {
+                        lv_group_focus_obj(lastChild);
+                    }
+                }
+           }
+        }
     }
 
     lvgl_port_unlock();
@@ -1693,21 +1718,23 @@ void UserSettings::footswitchPressed(FootswitchPress press) {
     switch (press) {
     case footswitchSinglePress:
         ESP_LOGI(TAG, "Settings: Single press");
-        advanceToNextButton();
+        moveToNextButton();
         break;
     case footswitchDoublePress:
         ESP_LOGI(TAG, "Settings: Double press");
-        pressFocusedButton();
+        // pressFocusedButton();
+        moveToPreviousButton();
         break;
     case footswitchLongPress:
         ESP_LOGI(TAG, "Settings: Long press");
-        if (screenStack.size() > 2) {
-            saveSettings();
-            removeCurrentMenu();            
-        } else {
-            // saveSettings();
-            tunerController->setState(tunerStateTuning);
-        }
+        pressFocusedButton();
+        // if (screenStack.size() > 2) {
+        //     saveSettings();
+        //     removeCurrentMenu();            
+        // } else {
+        //     // saveSettings();
+        //     tunerController->setState(tunerStateTuning);
+        // }
         break;
     }
 }
