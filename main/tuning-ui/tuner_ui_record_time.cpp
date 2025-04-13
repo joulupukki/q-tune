@@ -250,7 +250,11 @@ void record_time_gui_display_frequency(float frequency, float target_frequency, 
 }
 
 void record_time_gui_cleanup() {
-    // TODO: Do any cleanup needed here. 
+    // Kill timers if they are still running.
+    if (record_time_fade_timer != NULL) {
+        lv_timer_del(record_time_fade_timer);
+        record_time_fade_timer = NULL;
+    }
 }
 
 void record_time_create_labels(lv_obj_t * parent) {

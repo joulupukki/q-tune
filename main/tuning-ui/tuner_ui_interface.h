@@ -72,6 +72,9 @@ typedef struct {
     /// Tuner GUI interfaces are not responsible for cleaning up the main
     /// screen. The tuner_gui_task will also remove any LVGL objects that were
     /// placed in the screen by the Tuner GUI interface.
+    ///
+    /// If you have any animations or timers running make sure to stop them
+    /// here.
     void (*cleanup)(void);
 } TunerGUIInterface;
 

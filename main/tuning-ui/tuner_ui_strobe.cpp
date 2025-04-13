@@ -171,7 +171,11 @@ void strobe_gui_display_frequency(float frequency, float target_frequency, Tuner
 }
 
 void strobe_gui_cleanup() {
-    // TODO: Do any cleanup needed here. 
+    // Kill timers if they are still running.
+    if (strobe_fade_timer != NULL) {
+        lv_timer_del(strobe_fade_timer);
+        strobe_fade_timer = NULL;
+    }
 }
 
 void strobe_create_labels(lv_obj_t * parent) {
