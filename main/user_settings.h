@@ -78,7 +78,8 @@ class UserSettings {
     /// @brief Loads settings from persistent storage.
     void loadSettings();
 
-    void advanceToNextButton();
+    void moveToNextButton();
+    void moveToPreviousButton();
     void pressFocusedButton();
 
 public:
