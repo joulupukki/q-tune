@@ -136,6 +136,27 @@ void strobe_gui_display_frequency(float frequency, float target_frequency, Tuner
             lv_obj_clear_flag(strobe_arc_container, LV_OBJ_FLAG_HIDDEN);
         }
 
+        // If within the in-tune range, show the strobe arcs in the
+        // note color or if the note color is white, show the arcs in
+        // blue.
+        if (abs(cents) <= userSettings->inTuneCentsWidth) {
+            lv_palette_t palette = userSettings->noteNamePalette;
+            if (palette == LV_PALETTE_NONE) {
+                lv_obj_set_style_arc_color(strobe_arc1, lv_palette_main(LV_PALETTE_BLUE), LV_PART_INDICATOR);
+                lv_obj_set_style_arc_color(strobe_arc2, lv_palette_main(LV_PALETTE_BLUE), LV_PART_INDICATOR);
+                lv_obj_set_style_arc_color(strobe_arc3, lv_palette_main(LV_PALETTE_BLUE), LV_PART_INDICATOR);
+            } else {
+                lv_obj_set_style_arc_color(strobe_arc1, lv_palette_main(palette), LV_PART_INDICATOR);
+                lv_obj_set_style_arc_color(strobe_arc2, lv_palette_main(palette), LV_PART_INDICATOR);
+                lv_obj_set_style_arc_color(strobe_arc3, lv_palette_main(palette), LV_PART_INDICATOR);
+            }
+        } else {
+            // Show the strobe arcs in white
+            lv_obj_set_style_arc_color(strobe_arc1, lv_color_white(), LV_PART_INDICATOR);
+            lv_obj_set_style_arc_color(strobe_arc2, lv_color_white(), LV_PART_INDICATOR);
+            lv_obj_set_style_arc_color(strobe_arc3, lv_color_white(), LV_PART_INDICATOR);
+    }
+
         strobe_amount_to_rotate = cents * 0.1;
     } else {
         strobe_amount_to_rotate = 0.0;
